@@ -9,47 +9,66 @@ from Slice import SliceDirection, Slice
 def sliceToLayer(slice, layer_name, config):
 	slice_layer = InkscapeLayer(layer_name)
 	
-	# TODO sort out scaling
-	inches_per_slice = 5
+	# use 	config.slice_svg_length_inches
+
+	slice_length_degrees = slice.sliceLengthDegrees()
+
+	print(f"slice_length_degrees: {slice_length_degrees}")
+
+	# convert to feet somehow
+	# one fourth of distance around the earth (approximate) divided by degrees in one fourth of a circle
+	# kilometers_per_degree = 10,000 / 90
+	# feet_per_kilometer = 3280.4
+	# yields...
+	feet_per_degree = 364488.0
+	# yeah, longitude doesn't play nice as you approach the poles, but we'll consider the sliced squares to be truly square
+
+	slice_inches = feet_per_degree * slice_length_degrees * 12.0 # probably a big number
+
+	# okay, now go from the slice's size on earth to the render width
+	slice_scale = config["slice_svg_length_inches"] / slice_inches # should be something < 1
+
+	print(f"slice_scale: {slice_scale}")
 
 	start_y = 12
 
 	cur_x = 0
-	x_step_inches = 1
+	x_step_inches = config["slice_svg_length_inches"] / len(slice.elevations)
 
 	# remember that y coordinates go UP from start, so I guess that works since we're dealing with elevations?
 	slice_path = InkscapePath(cur_x, start_y)
 
 	# very placeholder...
 	# but yeah, need to scale DOWN the elevations to some local scale
-	elevation_feet_to_inches = .0033
 	basement_inches = 1
+	vertical_exaggeration = 2.0
 
 	# oh yeah, y coordinates are reversed cuz screen space
 	for cur_elevation in slice.elevations:
 		cur_y = start_y - basement_inches
-		# subtract some thing fromthe current elevation
-		current_calc_elev = cur_elevation - 4000
-		current_calc_elev *= elevation_feet_to_inches
-		cur_y -= current_calc_elev
-		cur_x += x_step_inches
+		current_elevation_in_svg_scale = cur_elevation * slice_scale * vertical_exaggeration
+		cur_y -= current_elevation_in_svg_scale
 		slice_path.move(cur_x, cur_y)
 
+		cur_x += x_step_inches
+
 	# at end, move back DOWN to min_y
+	cur_x -= x_step_inches	# remove last x step
 	slice_path.move(cur_x, start_y)
+	# TODO: NEED TO CLOSE THIS PATH WITH A Z CHARACTER!!! if it doesn't already do that?
 	
 	slice_layer.add_node(slice_path)
 
 	return slice_layer
 
 #  -----------------------------------------------------------------
-def slicesToSVG(slices, config):
+def slicesToSVG(topo_slices, config):
 	svg = InkscapeSVG()
 
 	cur_slice_number = 1
 	slice_base_name = "slice_"
 
-	for cur_slice in slices:
+	for cur_slice in topo_slices.slices:
 		cur_slice_layer = sliceToLayer(cur_slice, slice_base_name + str(cur_slice_number), config)
 		svg.addNode(cur_slice_layer)
 		cur_slice_number += 1

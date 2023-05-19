@@ -20,6 +20,7 @@ from TopoSlices import TopoSlices
 #	* config: optional trace
 #	* config: silent running
 #	* config: save slices to file
+#	* config: slice output length
 # 	* config input EVERYTHING
 # 	* config:input: validate inputs
 # 
@@ -41,8 +42,8 @@ MinorVersion = 1
 default_config = {
 	# slicer concerns
 	"slice_direction" : SliceDirection.NorthSouth,
-	"num_NS_steps" : 3,
-	"num_EW_steps" : 3,
+	"num_NS_steps" : 4,
+	"num_WE_steps" : 3,
 	"north_edge" : 33.9613461003105,
 	"west_edge" : -111.45394254239501,
 	"south_edge" : 33.88319885879201,
@@ -52,6 +53,7 @@ default_config = {
 	"use_concurrency" : True,
 
 	# svg concerns
+	"slice_svg_length_inches" : 10,
 	"vertical_scale" : 1,
 	"svg_filename" : "TopoVSlicerPyTest"
 }
@@ -191,7 +193,13 @@ def main_func():
 	#  --------------
 	main_slices = TopoSlices()
 
-	main_slices = loadFromFile("test_tsv.tsv")
+	save_filename = "test_tsv.tsv"
+
+	print("loading from file: " + save_filename)
+	main_slices = loadFromFile(save_filename)
+
+	main_timer.mark("load from file")
+
 	print("\nloaded...\n")
 	print(main_slices)
 
@@ -201,15 +209,21 @@ def main_func():
 	# main_slices.generateElevations(getHeight, main_config["use_concurrency"])
 	# main_timer.mark("generate elevations")
 
-	# saveToFile("test_tsv.tsv", main_slices)
+	# print("generated:")
+	# print(main_slices)
 
+	# print("saving to file: " + save_filename)
+	# saveToFile(save_filename, main_slices)
+
+	# main_timer.mark("save to file")
 
 
 	# print(main_slices)
 
 	# one refactor at a time plz
-	# slicesToSVG(main_slices, main_config)
-	# main_timer.mark("generate svg")
+	print("generating svg...")
+	slicesToSVG(main_slices, main_config)
+	main_timer.mark("generate svg")
 
 	if report_timings:
 		print()

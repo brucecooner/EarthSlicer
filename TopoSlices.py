@@ -39,7 +39,7 @@ class TopoSlices:
 		return (	
 			"slice_direction",
 			"num_NS_steps",
-			"num_EW_steps",
+			"num_WE_steps",
 			"north_edge",
 			"west_edge",
 			"south_edge",
@@ -77,10 +77,10 @@ class TopoSlices:
 			# travel west -> east, taking those delicious north/south slices
 			# so start lat and end lat are constant over the everything
 			current_long = config["west_edge"]
-			long_step = self.calcStep(config["west_edge"], config["east_edge"], config["num_EW_steps"])
+			long_step = self.calcStep(config["west_edge"], config["east_edge"], config["num_WE_steps"])
 
 			# +1 because, think of the "steps" as the gaps between the numbers, instead of the numbers themselves
-			for current_step in range(config["num_EW_steps"] + 1):
+			for current_step in range(config["num_WE_steps"] + 1):
 				# do some shit
 				current_slice = Slice(	config["north_edge"], current_long,
 												config["south_edge"], current_long,
@@ -100,7 +100,7 @@ class TopoSlices:
 			for current_step in range(config["num_NS_steps"] + 1):
 				current_slice = Slice(	current_lat, config["west_edge"],
 												current_lat, config["east_edge"],
-												config["num_EW_steps"],
+												config["num_WE_steps"],
 												config["slice_direction"])
 				current_slice.generatePoints()
 				
@@ -121,9 +121,6 @@ class TopoSlices:
 		# slices to data obj array
 		slices_data = [ cur_slice.toDataObj() for cur_slice in self.slices]
 
-		# print(slices_data)
-
-		# return { "config": self.config, "slices": slices_data }
 		return { "config": self.config, "slices": slices_data }
 
 	# ------------------------------------------
@@ -144,7 +141,7 @@ class TopoSlices:
 			raise Exception("TopoSlices.fromDataObj(): Invalid data_obj, missing property 'slices'")
 
 		# validate data_obj has expected number of slices?
-		expected_slices_num = 1 + self.config["num_NS_steps"] if self.config["slice_direction"] == SliceDirection.NorthSouth else self.config["num_NS_steps"]
+		expected_slices_num = 1 + self.config["num_WE_steps"] if self.config["slice_direction"] == SliceDirection.NorthSouth else self.config["num_NS_steps"]
 		if len(data_obj["slices"]) != expected_slices_num:
 			raise Exception(f"TopoSlices.fromDataObj(): Invalid data_obj, expected {expected_slices_num} slices, data contains {len(data_obj['slices'])}")
 
