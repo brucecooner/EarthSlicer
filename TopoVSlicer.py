@@ -46,12 +46,13 @@ MinorVersion = 1
 default_config = {
 	# slicer concerns
 	"slice_direction" : SliceDirection.NorthSouth,
-	"number_of_elevations" : 4,			# number of elevation points read along a slice (includes first/last)
+	"number_of_elevations" : 10,			# number of elevation points read along a slice (includes first/last)
 	"number_of_slices" : 3,					# number of slices taken
 	"north_edge" : 33.9613461003105,
-	"west_edge" : -111.45394254239501,
+	# "west_edge" : -111.45394254239501,
+	"west_edge" : -111.411012,
 	"south_edge" : 33.88319885879201,
-	"east_edge" : -111.35075475268964,
+	"east_edge" :  -111.405557, # -111.35075475268964,
 
 	# system concerns
 	"use_concurrency" : True,
@@ -59,12 +60,16 @@ default_config = {
 	# svg concerns
 	"slice_svg_length_inches" : 10,
 	"vertical_scale" : 1,
-	"svg_filename" : "TopoVSlicerPyTest"
+	"svg_filename" : "MtOrdTight"
 }
 
 # Mt. Ord:
 # north west: 33.9613461003105, -111.45394254239501
 # south east: 33.88319885879201, -111.35075475268964
+
+# tight box across Mt. Ord:
+# west : -111.411012
+# east :  -111.405557
 
 #  -----------------------------------------------------------------
 # system config
@@ -144,7 +149,6 @@ def getAppInfo():
 
 #  -----------------------------------------------------------------
 def saveToFile(filename, topo_slices):
-
 	# compose
 	file_data_obj = { 
 		FILE_KEY_APP : getAppInfo(),
@@ -206,7 +210,7 @@ def main_func():
 	#  --------------
 	main_slices = TopoSlices()
 
-	save_filename = "test_tsv.tsv"
+	save_filename = "mt_ord_tight.tsv"
 
 	# ---- test load ----
 	log.echo("loading from file: " + save_filename)
@@ -219,18 +223,19 @@ def main_func():
 	# ---------------------
 
 	# ---- test generate/save ----
+	# log.echo("generating slices...")
 	# main_slices.generateSlices(main_config)
 	# main_timer.mark("generate slices")
 
-	# print(main_slices)
-
+	# log.echo("getting elevations...")
 	# main_slices.generateElevations(getHeight, main_config["use_concurrency"])
 	# main_timer.mark("generate elevations")
 
-	# print("generated:")
-	# print(main_slices)
 
-	# print("saving to file: " + save_filename)
+	# log.echo("generated:")
+	# log.echo(main_slices)
+
+	# log.echo("saving to file: " + save_filename)
 	# saveToFile(save_filename, main_slices)
 
 	# main_timer.mark("save to file")
@@ -240,13 +245,13 @@ def main_func():
 	# print(main_slices)
 
 	# one refactor at a time plz
-	# print("generating svg...")
-	# slicesToSVG(main_slices, main_config)
-	# main_timer.mark("generate svg")
+	log.echo("generating svg...")
+	slicesToSVG(main_slices, main_config)
+	main_timer.mark("generate svg")
 
 	if report_timings:
-		print()
-		print(main_timer)
+		log.echo("")
+		log.echo(main_timer)
 
 
 #  ----------------------------------------------------------------------------
