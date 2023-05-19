@@ -28,5 +28,8 @@ class LogChannels:
 
 		setattr(LogChannels, channel_name, channelFunc)
 
-
+	# --------------------------------------------------------
+	def setChannel(self, channel_name, on):
+		channel_info = self.channels[channel_name]
+		channel_info["on"] = on
 
