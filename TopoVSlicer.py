@@ -3,6 +3,9 @@ import requests
 
 import jsons
 
+from LogChannels import LogChannels
+log = LogChannels()
+
 from Slice import SliceDirection
 from SliceRender import slicesToSVG
 from TopoSlices import TopoSlices
@@ -95,7 +98,7 @@ class TTrace:
 		for cur_timing in self.timings:
 			string_rep += f"\t{cur_timing['name']} : {cur_timing['time']}\n"
 		return string_rep
-
+	
 
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
@@ -110,10 +113,10 @@ FILE_KEY_TOPOSLICES = "topo_slices"
 #	FUNCTIONS
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-def printConfiguration(config_to_print):
-	print("config:")
+def printConfiguration(config_to_print, fnPrint):
+	fnPrint("config:")
 	for (k,v) in config_to_print.items():
-		print(f"\t{k} : {v}")
+		fnPrint(f"\t{k} : {v}")
 
 #  -----------------------------------------------------------------
 # gets height of point in lat,long from USGS point query service
@@ -170,9 +173,12 @@ def loadFromFile(filename):
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 def main_func():
-	print()
-	print(f"==================== TopoVSlicer-Py ({MajorVersion}.{MinorVersion}) ====================")
-	print()
+	log.addChannel("echo")
+	log.addChannel("todo", "TODO")
+
+	log.echo("")
+	log.echo(f"==================== TopoVSlicer-Py ({MajorVersion}.{MinorVersion}) ====================")
+	log.echo("")
 
 	main_timer = TTrace("TopoVSlicerPy")
 	main_timer.start()
@@ -189,9 +195,9 @@ def main_func():
 	# main_config["west_edge"] = 10.0
 	# main_config["east_edge"] = 0.0
 
-	print("TODO: gather input config")
+	log.todo("gather input config")
 
-	printConfiguration(main_config)
+	printConfiguration(main_config, log.echo)
 
 	main_timer.mark("gather/print configuration")
 
@@ -203,13 +209,13 @@ def main_func():
 	save_filename = "test_tsv.tsv"
 
 	# ---- test load ----
-	print("loading from file: " + save_filename)
+	log.echo("loading from file: " + save_filename)
 	main_slices = loadFromFile(save_filename)
 
 	main_timer.mark("load from file")
 
-	print("\nloaded...\n")
-	print(main_slices)
+	log.echo("\nloaded...\n")
+	log.echo(main_slices)
 	# ---------------------
 
 	# ---- test generate/save ----
