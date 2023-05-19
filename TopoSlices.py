@@ -25,10 +25,10 @@ class TopoSlices:
 	# ------------------------------------------
 	# returns step
 	@staticmethod
-	def calcStep(start, end, num_steps):
-		diff = end - start
+	def calcStep(start, end, number_of_points):
+		difference = end - start
 
-		step = diff / (num_steps)
+		step = difference / (number_of_points - 1)
 
 		return step
 
@@ -38,8 +38,8 @@ class TopoSlices:
 	def configProperties():
 		return (	
 			"slice_direction",
-			"num_NS_steps",
-			"num_WE_steps",
+			"number_of_slices",
+			"number_of_elevations",
 			"north_edge",
 			"west_edge",
 			"south_edge",
@@ -77,16 +77,17 @@ class TopoSlices:
 			# travel west -> east, taking those delicious north/south slices
 			# so start lat and end lat are constant over the everything
 			current_long = config["west_edge"]
-			long_step = self.calcStep(config["west_edge"], config["east_edge"], config["num_WE_steps"])
+			long_step = self.calcStep(config["west_edge"], config["east_edge"], config["number_of_slices"])
 
-			# +1 because, think of the "steps" as the gaps between the numbers, instead of the numbers themselves
-			for current_step in range(config["num_WE_steps"] + 1):
+			print("gen slices N/S")
+			print(f"long_step = {long_step}")
+
+			for current_step in range(config["number_of_slices"]):
 				# do some shit
 				current_slice = Slice(	config["north_edge"], current_long,
 												config["south_edge"], current_long,
-												config["num_NS_steps"],
+												config["number_of_elevations"],
 												config["slice_direction"]);
-				current_slice.generatePoints() 
 
 				self.slices.append(current_slice)
 				current_long += long_step
@@ -94,15 +95,14 @@ class TopoSlices:
 			# slicing west/east
 			# so traveling north -> south, taking w/e slices
 			current_lat = config["north_edge"]
-			lat_step = self.calcStep(config["north_edge"], config["south_edge"], config["num_NS_steps"])
+			lat_step = self.calcStep(config["north_edge"], config["south_edge"], config["number_of_slices"])
 
 			# +1 because, think of the "steps" as the gaps between the numbers, instead of the numbers themselves
-			for current_step in range(config["num_NS_steps"] + 1):
+			for current_step in range(config["number_of_slices"]):
 				current_slice = Slice(	current_lat, config["west_edge"],
 												current_lat, config["east_edge"],
-												config["num_WE_steps"],
+												config["number_of_elevations"],
 												config["slice_direction"])
-				current_slice.generatePoints()
 				
 				self.slices.append(current_slice)
 				current_lat += lat_step
@@ -125,7 +125,7 @@ class TopoSlices:
 
 	# ------------------------------------------
 	def fromDataObj(self, data_obj):
-		# TODO: validate more of data_obj?
+		# TODO: move validation to function
 
 		if not "config" in data_obj:
 			raise Exception("TopoSlices.fromDataObj(): Invalid data_obj, missing property 'config'")
@@ -141,7 +141,7 @@ class TopoSlices:
 			raise Exception("TopoSlices.fromDataObj(): Invalid data_obj, missing property 'slices'")
 
 		# validate data_obj has expected number of slices?
-		expected_slices_num = 1 + self.config["num_WE_steps"] if self.config["slice_direction"] == SliceDirection.NorthSouth else self.config["num_NS_steps"]
+		expected_slices_num = self.config["number_of_slices"]
 		if len(data_obj["slices"]) != expected_slices_num:
 			raise Exception(f"TopoSlices.fromDataObj(): Invalid data_obj, expected {expected_slices_num} slices, data contains {len(data_obj['slices'])}")
 

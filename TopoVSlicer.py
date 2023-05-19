@@ -25,6 +25,7 @@ from TopoSlices import TopoSlices
 # 	* config:input: validate inputs
 # 
 #	* iterative output w/ optional trace
+#	* file stats report
 
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
@@ -42,8 +43,8 @@ MinorVersion = 1
 default_config = {
 	# slicer concerns
 	"slice_direction" : SliceDirection.NorthSouth,
-	"num_NS_steps" : 4,
-	"num_WE_steps" : 3,
+	"number_of_elevations" : 4,			# number of elevation points read along a slice (includes first/last)
+	"number_of_slices" : 3,					# number of slices taken
 	"north_edge" : 33.9613461003105,
 	"west_edge" : -111.45394254239501,
 	"south_edge" : 33.88319885879201,
@@ -182,6 +183,12 @@ def main_func():
 	# begin with defaults
 	main_config = { k: v for (k,v) in default_config.items()}
 
+	# easy debugging
+	# main_config["south_edge"] = 0.0
+	# main_config["north_edge"] = 10.0
+	# main_config["west_edge"] = 10.0
+	# main_config["east_edge"] = 0.0
+
 	print("TODO: gather input config")
 
 	printConfiguration(main_config)
@@ -195,6 +202,7 @@ def main_func():
 
 	save_filename = "test_tsv.tsv"
 
+	# ---- test load ----
 	print("loading from file: " + save_filename)
 	main_slices = loadFromFile(save_filename)
 
@@ -202,9 +210,13 @@ def main_func():
 
 	print("\nloaded...\n")
 	print(main_slices)
+	# ---------------------
 
+	# ---- test generate/save ----
 	# main_slices.generateSlices(main_config)
 	# main_timer.mark("generate slices")
+
+	# print(main_slices)
 
 	# main_slices.generateElevations(getHeight, main_config["use_concurrency"])
 	# main_timer.mark("generate elevations")
@@ -216,14 +228,15 @@ def main_func():
 	# saveToFile(save_filename, main_slices)
 
 	# main_timer.mark("save to file")
+	# ----------------------------
 
 
 	# print(main_slices)
 
 	# one refactor at a time plz
-	print("generating svg...")
-	slicesToSVG(main_slices, main_config)
-	main_timer.mark("generate svg")
+	# print("generating svg...")
+	# slicesToSVG(main_slices, main_config)
+	# main_timer.mark("generate svg")
 
 	if report_timings:
 		print()

@@ -26,12 +26,12 @@ class SliceDirection(Enum):
 
 #  -----------------------------------------------------------------
 class Slice:
-	def __init__(self, start_lat = None, start_long = None, end_lat = None, end_long = None, num_steps = None, direction = None):
+	def __init__(self, start_lat = None, start_long = None, end_lat = None, end_long = None, number_of_elevations = None, direction = None):
 		self.start_lat = start_lat
 		self.start_long = start_long
 		self.end_lat = end_lat
 		self.end_long = end_long
-		self.num_steps = num_steps
+		self.number_of_elevations = number_of_elevations
 		self.slice_direction = direction
 
 		# generated data
@@ -50,7 +50,7 @@ class Slice:
 			"start_long",
 			"end_lat",
 			"end_long",
-			"num_steps",
+			"number_of_elevations",
 			"slice_direction",
 			"minimum_elevation",
 			"maximum_elevation",
@@ -63,11 +63,11 @@ class Slice:
 
 	# ------------------------------
 	def __repr__(self) -> str:
-		string_rep = f"{{Slice:\n\
-\tstart:{self.start_lat},{self.start_long}\n \
-\tend:{self.end_lat},{self.end_long},\n \
-\tnum_steps:{self.num_steps},\n \
-\tslice_direction:{self.slice_direction}\n"
+		string_rep = f"{{Slice:\n"
+		string_rep += f"\tstart:{self.start_lat},{self.start_long}\n"
+		string_rep += f"\tend:{self.end_lat},{self.end_long},\n "
+		string_rep += f"\tnumber_of_elevations:{self.number_of_elevations},\n"
+		string_rep += f"\tslice_direction:{self.slice_direction}\n"
 
 		string_rep += f"\tminimum_elevation: {self.minimum_elevation if None != self.minimum_elevation else '???'}\n"
 		string_rep += f"\tmaximum_elevation: {self.maximum_elevation if None != self.maximum_elevation else '???'}\n"
@@ -81,14 +81,13 @@ class Slice:
 		lat_diff = self.end_lat - self.start_lat
 		long_diff = self.end_long - self.start_long
 
-		long_step = long_diff / (self.num_steps)
-		lat_step = lat_diff / (self.num_steps)
+		long_step = long_diff / (self.number_of_elevations - 1)
+		lat_step = lat_diff / (self.number_of_elevations - 1)
 
 		cur_lat = self.start_lat
 		cur_long = self.start_long
 
-		# think of the "steps" as existing between the numbers, instead of the numbers themselves
-		for cur_step in range(self.num_steps + 1):
+		for cur_step in range(self.number_of_elevations):
 			points.append( [cur_lat, cur_long] )
 			cur_lat += lat_step
 			cur_long += long_step
@@ -172,14 +171,16 @@ class Slice:
 			if throw_on_fail:
 				raise Exception(result_message)
 
-		# validate number of elevations
-		expected_elevations_num = 1 + validate_data_obj["num_steps"]
+		# only validate number_of_elevations if valid
+		if valid_data:
+			# validate number of elevations
+			expected_elevations_num = validate_data_obj["number_of_elevations"]
 
-		if len(validate_data_obj["elevations"]) != expected_elevations_num:
-			result_message = f"Slice.fromDataObj(): Invalid data_obj, expected {expected_elevations_num} elevations, data contains {len(validate_data_obj['elevations'])}"
-			if throw_on_fail: 
+			if len(validate_data_obj["elevations"]) != expected_elevations_num:
 				valid_data = False
-				raise Exception(result_message)
+				result_message = f"Slice.fromDataObj(): Invalid data_obj, expected {expected_elevations_num} elevations, data contains {len(validate_data_obj['elevations'])}"
+				if throw_on_fail: 
+					raise Exception(result_message)
 
 		return {"result":valid_data, "message":result_message}
 
