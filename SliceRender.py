@@ -4,11 +4,15 @@ from Slice import SliceDirection, Slice
 # TODO:
 #	* sort out vertical coordinate chaos
 #	* vertical scale
+#	* all slices need to be aware of global minimum, adjust to accordingly
+#	* use passed in logger fn
+#	* is there a max layer count in inkscape?
 
 #  -----------------------------------------------------------------
 def sliceToLayer(slice, layer_name, config):
 	slice_layer = InkscapeLayer(layer_name)
-	
+
+
 	# use 	config.slice_svg_length_inches
 
 	slice_length_degrees = slice.sliceLengthDegrees()
@@ -22,7 +26,7 @@ def sliceToLayer(slice, layer_name, config):
 	# yields...
 	feet_per_degree = 364488.0
 	feet_per_mile = 5280
-	# yeah, longitude doesn't play nice as you approach the poles, but we'll consider the sliced squares to be truly square
+	# longitude gets squished as you approach the poles, but we'll consider the sliced squares to be truly square
 
 	slice_feet = feet_per_degree * slice_length_degrees
 	slice_inches = slice_feet * 12.0 # probably a big number

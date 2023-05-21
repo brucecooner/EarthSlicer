@@ -19,7 +19,7 @@ class LogChannels:
 			"prefix": channel_prefix,	# shows before every msg to channel
 			"logs": []
 		}
-		def channelFunc(self, message):
+		def channelFunc(self, message = ""):
 			channel_info = self.channels[channel_name]
 			channel_info["logs"].append(message)
 			if channel_info["on"]:

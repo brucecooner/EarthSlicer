@@ -1,10 +1,13 @@
-import time
-import requests
-
 import jsons
+import os
 
 from LogChannels import LogChannels
-log = LogChannels()
+
+from TimingTrace import TimingTrace
+from getHeightUSGS import getHeightUSGS
+
+from HeightMap import HeightMap
+from getHeightUSGS import getHeightUSGS
 
 from Slice import SliceDirection
 from SliceRender import slicesToSVG
@@ -55,7 +58,8 @@ default_config = {
 	"east_edge" :  -111.405557, # -111.35075475268964,
 
 	# system concerns
-	"use_concurrency" : True,
+	"use_concurrency" : False,
+	"height_map_filename" : "height_map.json",
 
 	# svg concerns
 	"slice_svg_length_inches" : 10,
@@ -73,7 +77,7 @@ default_config = {
 
 #  -----------------------------------------------------------------
 # system config
-report_timings = 0
+report_timings = True
 
 
 #  -----------------------------------------------------------------
@@ -81,29 +85,7 @@ report_timings = 0
 # TYPES
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-class TTrace:
-	def __init__(self, timer_name):
-		self.trace_name = timer_name
-		self.timings = []
 
-	def start(self):
-		self.last_mark = time.perf_counter()
-
-	def mark(self, timing_name):
-		mark_time = time.perf_counter()
-		new_timing = {"name":timing_name, "time":mark_time - self.last_mark }
-		self.timings.append(new_timing)
-		self.last_mark = mark_time
-
-	def total_time(self):
-		return sum((cur_timing["time"] for cur_timing in self.timings), 0)
-
-	def __repr__(self) -> str:
-		string_rep = f"Timer: {self.trace_name}  (total_time:{self.total_time()})\n"
-		for cur_timing in self.timings:
-			string_rep += f"\t{cur_timing['name']} : {cur_timing['time']}\n"
-		return string_rep
-	
 
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
@@ -112,6 +94,22 @@ class TTrace:
 #  -----------------------------------------------------------------
 FILE_KEY_APP = "app"
 FILE_KEY_TOPOSLICES = "topo_slices"
+
+#  -----------------------------------------------------------------
+#  -----------------------------------------------------------------
+#	VARIABLES
+#  -----------------------------------------------------------------
+#  -----------------------------------------------------------------
+log = LogChannels()
+log.addChannel("echo")
+log.addChannel("debug", "debug")
+log.addChannel("todo", "TODO")
+log.addChannel("hmap", "hmap")
+log.setChannel("hmap", False)
+log.addChannel("Slicer", "Slicer")
+log.setChannel("Slicer", False)
+
+main_height_map = HeightMap(name = "MHM", log_fn = log.hmap)
 
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
@@ -124,52 +122,52 @@ def printConfiguration(config_to_print, fnPrint):
 		fnPrint(f"\t{k} : {v}")
 
 #  -----------------------------------------------------------------
-# gets height of point in lat,long from USGS point query service
-# for some reason the api uses x,y insead of long,lat
-# expects length 2 array: lat_long_arr = [lat,long]
-def getHeight(lat_long_arr):
-	api_url = f"https://epqs.nationalmap.gov/v1/json?x={lat_long_arr[1]}&y={lat_long_arr[0]}&wkid=4326&units=Feet&includeDate=false"
+# def getAppInfo():
+# 	return {
+# 		"name" : "TopoVSlicer",
+# 		"version" : f"{MajorVersion}.{MinorVersion}"
+# 	}
 
-	# print(api_url)
+# #  -----------------------------------------------------------------
+# def saveToFile(filename, topo_slices):
+# 	# compose
+# 	file_data_obj = { 
+# 		FILE_KEY_APP : getAppInfo(),
+# 		FILE_KEY_TOPOSLICES : topo_slices.toDataObj()
+# 	}
 
-	api_response = requests.get(api_url)
-	response_json = api_response.json()
+# 	with open(filename, "wt") as file_obj:
+# 		file_obj.write(jsons.dumps(file_data_obj, {"indent":3}))
 
-	# print(response_json)
-	# print(response_json.keys())
+# #  -----------------------------------------------------------------
+# def loadFromFile(filename):
+# 		raw_data = ""
+# 		with open(filename, "rt") as file_obj:
+# 			raw_data = file_obj.read()
 
-	return response_json["value"]
+# 		file_data_obj = jsons.loads(raw_data)
 
-#  -----------------------------------------------------------------
-def getAppInfo():
-	return {
-		"name" : "TopoVSlicer",
-		"version" : f"{MajorVersion}.{MinorVersion}"
-	}
+# 		topo_slices = TopoSlices()
+# 		topo_slices.fromDataObj(file_data_obj[FILE_KEY_TOPOSLICES])
 
-#  -----------------------------------------------------------------
-def saveToFile(filename, topo_slices):
-	# compose
-	file_data_obj = { 
-		FILE_KEY_APP : getAppInfo(),
-		FILE_KEY_TOPOSLICES : topo_slices.toDataObj()
-	}
+# 		return topo_slices
 
-	with open(filename, "wt") as file_obj:
-		file_obj.write(jsons.dumps(file_data_obj, {"indent":3}))
-
-#  -----------------------------------------------------------------
-def loadFromFile(filename):
+#  ----------------------------------------------------------------------------
+def loadHeightMapFromFile(filename, height_map):
+	# have map file?
+	if os.path.isfile(filename):
+		log.echo(f'using height map file {filename}')
 		raw_data = ""
-		with open(filename, "rt") as file_obj:
-			raw_data = file_obj.read()
+		with open(filename, "rt") as height_map_file_obj:
+			raw_data = height_map_file_obj.read()
+			height_map_data_obj = jsons.loads(raw_data)
+			height_map.fromDataObj(height_map_data_obj)
+	else:
+		log.echo(f'height map file {filename} not found')
 
-		file_data_obj = jsons.loads(raw_data)
-
-		topo_slices = TopoSlices()
-		topo_slices.fromDataObj(file_data_obj[FILE_KEY_TOPOSLICES])
-
-		return topo_slices
+#  ----------------------------------------------------------------------------
+def mainGetHeightFromMap(lat_long_array):
+	return main_height_map.get(lat_long_array[0], lat_long_array[1], lambda : getHeightUSGS(lat_long_array))
 
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
@@ -177,14 +175,11 @@ def loadFromFile(filename):
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 def main_func():
-	log.addChannel("echo")
-	log.addChannel("todo", "TODO")
-
-	log.echo("")
+	log.echo()
 	log.echo(f"==================== TopoVSlicer-Py ({MajorVersion}.{MinorVersion}) ====================")
-	log.echo("")
+	log.echo()
 
-	main_timer = TTrace("TopoVSlicerPy")
+	main_timer = TimingTrace("TopoVSlicerPy")
 	main_timer.start()
 
 	#  --------------
@@ -208,46 +203,51 @@ def main_func():
 	#  --------------
 	# BEGIN WORK
 	#  --------------
-	main_slices = TopoSlices()
 
-	save_filename = "mt_ord_tight.tsv"
+	# ---------------
+	# load height map
+	log.echo()
+	loadHeightMapFromFile(main_config["height_map_filename"], main_height_map)
 
-	# ---- test load ----
-	log.echo("loading from file: " + save_filename)
-	main_slices = loadFromFile(save_filename)
+	log.echo("checking h. map...")
+	log.echo(str(main_height_map))
 
-	main_timer.mark("load from file")
+	main_timer.mark("load height map")
 
-	log.echo("\nloaded...\n")
-	log.echo(main_slices)
-	# ---------------------
+	# ---------------
+	# make slices
+	main_slices = TopoSlices(log_fn = log.Slicer)
 
-	# ---- test generate/save ----
-	# log.echo("generating slices...")
-	# main_slices.generateSlices(main_config)
-	# main_timer.mark("generate slices")
+	# save_filename = "mt_ord_tight.tsv"
 
-	# log.echo("getting elevations...")
-	# main_slices.generateElevations(getHeight, main_config["use_concurrency"])
-	# main_timer.mark("generate elevations")
+	# ---- generate slices ----
+	main_slices.generateSlices(main_config)
 
+	main_timer.mark("generate slices")
 
-	# log.echo("generated:")
-	# log.echo(main_slices)
+	log.echo("getting elevations...")
 
-	# log.echo("saving to file: " + save_filename)
-	# saveToFile(save_filename, main_slices)
+	main_slices.generateElevations(mainGetHeightFromMap, main_config["use_concurrency"])
 
-	# main_timer.mark("save to file")
-	# ----------------------------
+	main_timer.mark("generate elevations")
 
+	log.todo("save height map if changed")
+	# log.echo("saving height map...")
+
+# 		file_obj.write(jsons.dumps(file_data_obj, {"indent":3}))
+
+	# height_map_data_obj = main_height_map.toDataObj()
+
+	# with open(main_config["height_map_filename"], "wt") as height_map_file_obj:
+	# 	height_map_file_obj.write(jsons.dumps(height_map_data_obj, {"indent":3}))
+	# 	log.echo(f'height map saved to: {main_config["height_map_filename"]}')
 
 	# print(main_slices)
 
 	# one refactor at a time plz
-	log.echo("generating svg...")
-	slicesToSVG(main_slices, main_config)
-	main_timer.mark("generate svg")
+	# log.echo("generating svg...")
+	# slicesToSVG(main_slices, main_config)
+	# main_timer.mark("generate svg")
 
 	if report_timings:
 		log.echo("")

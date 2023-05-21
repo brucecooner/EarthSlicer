@@ -26,13 +26,21 @@ class SliceDirection(Enum):
 
 #  -----------------------------------------------------------------
 class Slice:
-	def __init__(self, start_lat = None, start_long = None, end_lat = None, end_long = None, number_of_elevations = None, direction = None):
+	def __init__(	self,
+	      			start_lat = None,
+						start_long = None,
+						end_lat = None,
+						end_long = None,
+						number_of_elevations = None,
+						direction = None,
+						slice_name = ""):
 		self.start_lat = start_lat
 		self.start_long = start_long
 		self.end_lat = end_lat
 		self.end_long = end_long
 		self.number_of_elevations = number_of_elevations
 		self.slice_direction = direction
+		self.name = slice_name
 
 		# generated data
 		self.elevations = None
@@ -104,6 +112,7 @@ class Slice:
 	# ------------------------------
 	def generateElevationsConcurrent(self, elevation_func, points):
 		self.elevations = []
+		elevations = None
 		with ProcessPoolExecutor(4) as executor:
 			chunk_size = 2
 			# python returns map results in the order they are dispatched, so 
@@ -126,7 +135,6 @@ class Slice:
 		self.maximum_elevation = max(self.elevations)
 
 	# ------------------------------------------
-	# calculate length of slices in miles (feet?)
 	def sliceLengthDegrees(self):
 		slice_length_degrees = 0
 		if self.slice_direction == SliceDirection.NorthSouth:
@@ -142,7 +150,6 @@ class Slice:
 
 	# ------------------------------------------
 	def __setitem__(self, key, value):
-			# print('Slice.setitem called')
 			return setattr(self, key, value)
 
 	# ------------------------------
