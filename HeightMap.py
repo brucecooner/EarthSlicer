@@ -8,36 +8,32 @@
 #		* A precision setting of 0.0001 degrees (4 decimal places) should represent 
 # 		  about 30 feet, probably more than good enough for my use
 import jsons
+from threading import Lock
+import random
+
+import asyncio
+
+from LogChannels import log
+
+
+log.addChannel("hmap", "hmap")
+log.setChannel("hmap", False)
 
 # ------------------------------
 # SETTINGS
 height_map_default_precision = 4
 
-
 # ------------------------------
 class HeightMap():
-	def __init__(self, precision = height_map_default_precision, name = "hmapdefault", log_fn = None):
+	def __init__(self, precision = height_map_default_precision, name = "hmapdefault"):
 		# precision at which coordinates are track
 		self.precision = precision if precision else height_map_default_precision
 		# multiplier that shifts decimals up/down when reducing precision
 		self.decimal_shifter = pow(10,self.precision)
-
-		self.log = log_fn if log_fn else self.nop_log
-
 		self.name = name
 
 		# holds discovered points
 		self.map = {}
-
-	def nop_log(self, message):
-			pass
-
-	# -----------------------------------------------------------
-	def logConfig(self, log_fn):
-		log_fn(f"HeightMap {self.name} config:")
-		log_fn(f"\tprecision: {self.precision}")
-		log_fn(f"\tdecimal_shifter: {self.decimal_shifter}")
-		log_fn(f"\tmap size: {len(self.map.keys())}")
 
 	# -----------------------------------------------------------
 	def __repr__(self):
@@ -55,22 +51,47 @@ class HeightMap():
 		return to_precision
 
 	# -----------------------------------------------------------
-	def get(self, lat, long, fn_add_if_empty):
-		self.log(f"get({lat},{long})")
+	def get(self, lat, long, fn_on_miss):
+		# this_call_id = id(self)
+
+		log.hmap(f"get({lat},{long}) ")
+		return_val = None
 
 		lat_adjust = self.numToPrecision(lat)
 		long_adjust = self.numToPrecision(long)
 		coordinate_string = f"{lat_adjust},{long_adjust}"
 
 		if not coordinate_string in self.map:
-			self.log("not found, adding...")
-			self.map[coordinate_string] = fn_add_if_empty()
+			log.hmap(f"not found...")
+			add_val = fn_on_miss((lat_adjust, long_adjust))
+			self.map[coordinate_string] = add_val
+			log.hmap(f"added {add_val}")
 
-		return_val = self.map[coordinate_string]
+		log.hmap(f"returning: {self.map[coordinate_string]}")
 
-		self.log(f"returning: {return_val}")
+		return self.map[coordinate_string]
 
-		return return_val
+	# -----------------------------------------------------------
+	async def getAsync(self, lat, long, fn_on_miss):
+		return_val = 0
+		# this_call_id = id(self)
+
+		log.hmap(f"getAsync({lat},{long}) ")
+
+		lat_adjust = self.numToPrecision(lat)
+		long_adjust = self.numToPrecision(long)
+		coordinate_string = f"{lat_adjust},{long_adjust}"
+
+		if not coordinate_string in self.map:
+			log.hmap(f"not found...")
+			add_value = await fn_on_miss((lat_adjust, long_adjust))
+			log.hmap(f"added {add_value}")
+			self.map[coordinate_string] = add_value
+
+		log.hmap(f"returning: {self.map[coordinate_string]}")
+
+		return self.map[coordinate_string]
+
 
 	# -----------------------------------------------------------
 	def toDataObj(self):
@@ -92,7 +113,7 @@ class HeightMap():
 # -------------------------------------------------------------
 # -------------------------------------------------------------
 if __name__ == "__main__":
-	from getHeightUSGS import getHeightUSGS
+	from USGS_EPQS import getHeightUSGS
 	from TimingTrace import TimingTrace
 
 	llhm_timer = TimingTrace("HeightMap")

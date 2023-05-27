@@ -1,13 +1,20 @@
 from enum import Enum
-from concurrent.futures import ProcessPoolExecutor
+# from concurrent.futures import ProcessPoolExecutor
+# import threading
+import asyncio
+
+from LogChannels import log
 
 # TODO:
-# fingerprint for validation errors (coordinates)
+# fingerprint for validation errors (coordinates)  (huh? was I drunk when I wrote this?)
 
 # TO-DONE:
 #	* remember max elevation
 #	* dispatch multiple elevation requests to cut down on time
 #	* no need to keep points around, generate them on demand when elevations are needed then dump them
+
+log.addChannel("slice", "slice")
+log.setChannel("slice", False)
 
 #  -----------------------------------------------------------------
 class SliceDirection(Enum):
@@ -47,9 +54,7 @@ class Slice:
 		self.minimum_elevation = None
 		self.maximum_elevation = None
 
-		# config
-		self.use_concurrency = False
-
+	# ------------------------------
 	@staticmethod
 	def dataObjFields():
 		# fields written to/from data obj
@@ -64,10 +69,6 @@ class Slice:
 			"maximum_elevation",
 			"elevations"
 		]
-
-	# ------------------------------
-	def set_use_concurrency(self, use_conc = True):
-		self.use_concurrency = use_conc
 
 	# ------------------------------
 	def __repr__(self) -> str:
@@ -103,33 +104,36 @@ class Slice:
 		return points
 
 	# ------------------------------
-	def generateElevationsSerial(self, elevation_func, points):
+	# serial form
+	# elevation_func will be sent (lat,long):list
+	def getElevations(self, elevation_func):
+		points = self.generatePoints()
 		self.elevations = []
+
 		for cur_point in points:
 			cur_elevation = elevation_func(cur_point)
 			self.elevations.append(cur_elevation)
 
-	# ------------------------------
-	def generateElevationsConcurrent(self, elevation_func, points):
-		self.elevations = []
-		elevations = None
-		with ProcessPoolExecutor(4) as executor:
-			chunk_size = 2
-			# python returns map results in the order they are dispatched, so 
-			# these /should/ always be in correct order
-			elevations = list(executor.map(elevation_func, points, chunksize=chunk_size))
-
-		self.elevations = elevations
+		self.minimum_elevation = min(self.elevations)
+		self.maximum_elevation = max(self.elevations)
 
 	# ------------------------------
-	# elevation_func should (for now), just take lat,long coordinates
-	def generateElevations(self, elevation_func, use_concurrency ):
+	# async form
+	async def getElevationsAsync(self, elevation_func):
 		points = self.generatePoints()
+		self.elevations = []
+		tasks = []
 
-		if False == use_concurrency:
-			self.generateElevationsSerial(elevation_func, points)
-		else:
-			self.generateElevationsConcurrent(elevation_func, points)
+		async def getAnElevation(point, elevation_list, point_index):
+			log.slice(f"getAnElevation(), getting point for {point_index}")
+			elevation = await elevation_func(point)
+			elevation_list.insert(point_index, elevation)
+			log.slice(f"getAnElevation(), got {elevation}")
+
+		for cur_point_index in range(len(points)):
+			tasks.append(getAnElevation(points[cur_point_index], self.elevations, cur_point_index))
+
+		await asyncio.gather(*tasks)
 
 		self.minimum_elevation = min(self.elevations)
 		self.maximum_elevation = max(self.elevations)

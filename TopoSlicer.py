@@ -1,26 +1,27 @@
 import jsons
 
+from LogChannels import log
+
 from Slice import Slice, SliceDirection
+
+log.addChannel("slicer", "slicer")
+log.setChannel("slicer", False)
 
 # TODO:
 #	* track overall min/max?
+#	* version that takes data obj? seems unnecessary with height map in play
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-class TopoSlices:
-	# TODO: version that takes data obj
-	def __init__(self, log_fn):
+class TopoSlicer:
+	def __init__(self):
 		self.config = None
 		self.slices = None
 
-		self.log = log_fn if log_fn else self.default_log
-
-	def default_log(self, message):
-		pass
-
 	# ------------------------------
 	def __repr__(self) -> str:
-		string_rep = f"TopoSlices\n"
+		string_rep = f"TopoSlicer\n"
+		string_rep += f"id: {id(self)}\n"
 		string_rep += f"config: \n"
 		string_rep += "None" if not self.config else jsons.dumps(self.config, {"indent":3}) + "\n"
 		string_rep += f"slices: " + "None" if not self.slices else str(self.slices) + "\n"
@@ -56,7 +57,7 @@ class TopoSlices:
 		valid_config = True
 		result_message = ""
 		missing_keys = []
-		for cur_prop in TopoSlices.configProperties():
+		for cur_prop in TopoSlicer.configProperties():
 			if not cur_prop in test_config:
 				valid = False
 				missing_keys.append(cur_prop)
@@ -71,9 +72,9 @@ class TopoSlices:
 	# ------------------------------------------
 	# generates slices from given config
 	def generateSlices(self, config):
-		self.log("generating slices...")
+		log.slicer("generating slices...")
 
-		TopoSlices.validateConfig(config)
+		TopoSlicer.validateConfig(config)
 		# get slice relevant parts of config
 		self.config = { cp : config[cp] for cp in self.configProperties()}
 
@@ -93,8 +94,7 @@ class TopoSlices:
 												config["south_edge"], current_long,
 												config["number_of_elevations"],
 												config["slice_direction"],
-												f"{slice_num}"
-												);
+												f"slice_{slice_num}")
 
 				self.slices.append(current_slice)
 				slice_num += 1
@@ -105,32 +105,42 @@ class TopoSlices:
 			current_lat = config["north_edge"]
 			lat_step = self.calcStep(config["north_edge"], config["south_edge"], config["number_of_slices"])
 
-			# +1 because, think of the "steps" as the gaps between the numbers, instead of the numbers themselves
 			for current_step in range(config["number_of_slices"]):
 				current_slice = Slice(	current_lat, config["west_edge"],
 												current_lat, config["east_edge"],
 												config["number_of_elevations"],
 												config["slice_direction"],
-												f"{slice_num}"
-												)
+												f"slice_{slice_num}")
 				
 				self.slices.append(current_slice)
 				slice_num += 1
 				current_lat += lat_step
 
-		self.log(f"generated {len(self.slices)} slices")
+		log.slicer(f"generated {len(self.slices)} slices")
 
 	# ------------------------------------------
-	# generates elevations from given config
-	def generateElevations(self, elevation_func, use_concurrency):
-		self.log("getting elevations...")
-
+	# serially generates elevations
+	async def getElevationsAsync(self, elevation_func):
 		if None == self.slices:
-			raise Exception('Attempt to generate elevations without slices defined')
+			raise Exception('Attempt to get elevations without slices defined')
+		
+		log.slicer(f"getElevationsAsync()")
 
 		for cur_slice in self.slices:
-			self.log(f'slice: {cur_slice.name}')
-			cur_slice.generateElevations(elevation_func, use_concurrency)
+			log.slicer(f'slice: {cur_slice.name}')
+			await cur_slice.getElevationsAsync(elevation_func)
+
+	# ------------------------------------------
+	# serially generates elevations
+	def getElevations(self, elevation_func):
+		if None == self.slices:
+			raise Exception('Attempt to get elevations without slices defined')
+		
+		log.slicer(f"getElevations()")
+
+		for cur_slice in self.slices:
+			log.slicer(f'slice: {cur_slice.name}')
+			cur_slice.getElevations(elevation_func)
 
 	# ------------------------------------------
 	def toDataObj(self):
@@ -147,7 +157,7 @@ class TopoSlices:
 			raise Exception("TopoSlices.fromDataObj(): Invalid data_obj, missing property 'config'")
 
 		self.config = data_obj["config"]
-		TopoSlices.validateConfig(self.config)
+		TopoSlicer.validateConfig(self.config)
 
 		# convert slice direction to Class enum
 		slice_dir_enum = SliceDirection.toSliceDirection(self.config["slice_direction"])

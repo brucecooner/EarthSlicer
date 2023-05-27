@@ -1,4 +1,6 @@
 import time
+# track runtime of specific actions (in English maybe?)
+
 
 class TimingTrace:
 	def __init__(self, timer_name):
