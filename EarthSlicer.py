@@ -21,7 +21,6 @@ from TopoSlicer import TopoSlicer
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-#	* new name for main file, too close to TopoSlicer class name
 #	* config: optional trace
 #	* config: silent running
 #	* config: save slices to file
@@ -33,6 +32,9 @@ from TopoSlicer import TopoSlicer
 # 
 #	* iterative output w/ optional trace (ongoing)
 #	* height map stats report
+
+# DONE:
+#	* new name for main file, too close to TopoSlicer class name (went with EarthSlicer for now)
 
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
@@ -50,7 +52,7 @@ MinorVersion = 1
 default_config = {
 	# slicer concerns
 	"slice_direction" : SliceDirection.NorthSouth,
-	"number_of_elevations" : 10,			# number of elevation points read along a slice (includes first/last)
+	"number_of_elevations" : 25,			# number of elevation points read along a slice (includes first/last)
 	"number_of_slices" : 3,					# number of slices taken
 	"north_edge" : 33.9613461003105,
 	# "west_edge" : -111.45394254239501,
@@ -149,7 +151,7 @@ async def getElevationsAsync(slicer:TopoSlicer, height_map:HeightMap):
 # MAIN (FUNC)
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
-async def main_func():
+def main_func():
 	log.echo()
 	log.echo(f"==================== TopoVSlicer-Py ({MajorVersion}.{MinorVersion}) ====================")
 	log.echo()
@@ -214,7 +216,7 @@ async def main_func():
 	log.echo("getting elevations")
 
 	if main_config["async_http"]:
-		await getElevationsAsync(main_slicer, main_height_map)
+		asyncio.run(getElevationsAsync(main_slicer, main_height_map))
 	else:
 		getElevations(main_slicer, main_height_map)
 
@@ -249,4 +251,4 @@ async def main_func():
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 if __name__ == '__main__':
-	asyncio.run(main_func())
+	main_func()
