@@ -1,12 +1,12 @@
 from enum import Enum
-# from concurrent.futures import ProcessPoolExecutor
-# import threading
 import asyncio
 
 from LogChannels import log
+import list_chunk
 
 # TODO:
-# fingerprint for validation errors (coordinates)  (huh? was I drunk when I wrote this?)
+#	* fingerprint for validation errors (coordinates)  (huh? was I drunk when I wrote this?)
+#	* probably need to throttle the number of async requests somehow
 
 # TO-DONE:
 #	* remember max elevation
@@ -122,18 +122,32 @@ class Slice:
 	async def getElevationsAsync(self, elevation_func):
 		points = self.generatePoints()
 		self.elevations = []
-		tasks = []
 
-		async def getAnElevation(point, elevation_list, point_index):
+		# local func to get elevation and put it at specific index in a list
+		# because elevations may arrive back out of order
+		async def getElevationToIndex(point, elevation_list, point_index):
 			log.slice(f"getAnElevation(), getting point for {point_index}")
 			elevation = await elevation_func(point)
 			elevation_list.insert(point_index, elevation)
-			log.slice(f"getAnElevation(), got {elevation}")
+			log.slice(f"getAnElevation(), index {point_index} got {elevation}")
 
-		for cur_point_index in range(len(points)):
-			tasks.append(getAnElevation(points[cur_point_index], self.elevations, cur_point_index))
+		cur_chunk_index = 0
+		chunk_size = 10
+		log.todo(f"configurable slice chunk size")
+		log.slice(f"chunk_size: {chunk_size}")
+		log.slice(f"num points: {len(points)}")
 
-		await asyncio.gather(*tasks)
+		while cur_chunk_index < len(points):
+			log.slice(f"cur_chunk_index: {cur_chunk_index}")
+			log.echo(f"Issuing {chunk_size} elevation requests")
+	
+			tasks = []
+			for cur_point_index in range(cur_chunk_index, min(len(points) - 1, cur_chunk_index + chunk_size)):
+				tasks.append(getElevationToIndex(points[cur_point_index], self.elevations, cur_point_index))
+
+			await asyncio.gather(*tasks)
+	
+			cur_chunk_index += chunk_size
 
 		self.minimum_elevation = min(self.elevations)
 		self.maximum_elevation = max(self.elevations)
