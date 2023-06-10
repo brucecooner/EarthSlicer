@@ -29,6 +29,7 @@
 # # <no more output from any channel>
 
 # TODO:
+#	* reserve the log method names (can't use as channel names)
 #	* I don't like the setChannel() method, rename it
 #	* also awkward going through log to silence a channel, can we engineer a way to 
 #	 		silence a channel THROUGH that channel? like... log.echo.silence(True)

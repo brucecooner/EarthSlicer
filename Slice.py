@@ -2,19 +2,21 @@ from enum import Enum
 import asyncio
 
 from LogChannels import log
-import list_chunk
+from GTimer import gtimer
 
 # TODO:
 #	* fingerprint for validation errors (coordinates)  (huh? was I drunk when I wrote this?)
-#	* probably need to throttle the number of async requests somehow
+#	* configurable slice chunk size
+#	* friendlier output around elevation progress
 
 # TO-DONE:
+#	* probably need to throttle the number of async requests somehow
 #	* remember max elevation
 #	* dispatch multiple elevation requests to cut down on time
 #	* no need to keep points around, generate them on demand when elevations are needed then dump them
 
 log.addChannel("slice", "slice")
-log.setChannel("slice", False)
+# log.setChannel("slice", False)
 
 #  -----------------------------------------------------------------
 class SliceDirection(Enum):
@@ -86,6 +88,7 @@ class Slice:
 
 	# ------------------------------
 	def generatePoints(self):
+		gtimer.startTimer(f"{self.name}_genpoints")
 		points = []
 		lat_diff = self.end_lat - self.start_lat
 		long_diff = self.end_long - self.start_long
@@ -101,12 +104,17 @@ class Slice:
 			cur_lat += lat_step
 			cur_long += long_step
 
+		gtimer.markTimer(f"{self.name}_genpoints", "sliceGenPoints")
+
+		log.slice(f"generated {len(points)} points")
 		return points
 
 	# ------------------------------
 	# serial form
 	# elevation_func will be sent (lat,long):list
 	def getElevations(self, elevation_func):
+		gtimer.startTimer(f"{self.name}_gen_elevations_serial")
+
 		points = self.generatePoints()
 		self.elevations = []
 
@@ -117,40 +125,49 @@ class Slice:
 		self.minimum_elevation = min(self.elevations)
 		self.maximum_elevation = max(self.elevations)
 
+		gtimer.markTimer(f"{self.name}_gen_elevations_serial", "sliceGetElevsSerial")
+
 	# ------------------------------
 	# async form
 	async def getElevationsAsync(self, elevation_func):
+		gtimer.startTimer(f"{self.name}_getElevAsync")
 		points = self.generatePoints()
 		self.elevations = []
 
 		# local func to get elevation and put it at specific index in a list
 		# because elevations may arrive back out of order
-		async def getElevationToIndex(point, elevation_list, point_index):
-			log.slice(f"getAnElevation(), getting point for {point_index}")
+		async def getElevationToIndex(point, elevation_map, point_index):
 			elevation = await elevation_func(point)
-			elevation_list.insert(point_index, elevation)
-			log.slice(f"getAnElevation(), index {point_index} got {elevation}")
+			elevation_map[f"{point_index}"] = elevation	# insert this elevation with index as key
 
 		cur_chunk_index = 0
-		chunk_size = 10
+		chunk_size = 20
 		log.todo(f"configurable slice chunk size")
-		log.slice(f"chunk_size: {chunk_size}")
-		log.slice(f"num points: {len(points)}")
+
+		# this allows proper ordering of elevations, because they can arrive out of order from the async get
+		# keys are just the numeric index of the point
+		point_index_to_elevation_map = {}
 
 		while cur_chunk_index < len(points):
-			log.slice(f"cur_chunk_index: {cur_chunk_index}")
-			log.echo(f"Issuing {chunk_size} elevation requests")
-	
 			tasks = []
-			for cur_point_index in range(cur_chunk_index, min(len(points) - 1, cur_chunk_index + chunk_size)):
-				tasks.append(getElevationToIndex(points[cur_point_index], self.elevations, cur_point_index))
+			for cur_point_index in range(cur_chunk_index, min(len(points), cur_chunk_index + chunk_size)):
+				tasks.append(getElevationToIndex(points[cur_point_index], point_index_to_elevation_map, cur_point_index))
 
+			log.slice(f"queued {len(tasks)} elevation requests")
 			await asyncio.gather(*tasks)
 	
 			cur_chunk_index += chunk_size
 
+		# now turn elevation index map into ordered list
+		# there should be a key in the map for every point index
+		for cur_index in range(len(points)): 
+			self.elevations.append(point_index_to_elevation_map[f"{cur_index}"]) # key error here means map wasn't fully built!
+
 		self.minimum_elevation = min(self.elevations)
 		self.maximum_elevation = max(self.elevations)
+
+		gtimer.markTimer(f"{self.name}_getElevAsync", "sliceGetElevsAsync")
+
 
 	# ------------------------------------------
 	def sliceLengthDegrees(self):

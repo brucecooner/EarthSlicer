@@ -2,6 +2,7 @@ import requests
 from aiohttp import ClientSession
 
 from LogChannels import log
+from GTimer import gtimer
 
 log.addChannel("epqs", "epqs")
 log.setChannel("epqs", False)
@@ -24,18 +25,27 @@ class USGS_EPQS:
 	# expects length 2 array: lat_long_arr = [lat,long]
 	@staticmethod
 	def getHeight(lat_long_arr:list):
+		gtimer.startTimer("epqsSerial")
 		api_url = USGS_EPQS.query_url(lat_long_arr)
 		api_response = requests.get(api_url)
 		response_json = api_response.json()
+		gtimer.markTimer("epqsSerial", "EPQSgetHeightSerial")
 		return response_json["value"]
 
 	# --------------------------------------------------------------------
 	# get height function that speaks acyncio
 	@staticmethod
 	async def getHeightAsync(lat_long_arr:list, session:ClientSession):
+		timer_name = f"epqs_{lat_long_arr}"
+		gtimer.startTimer(timer_name)
+
 		epqs_url = USGS_EPQS.query_url(lat_long_arr)
 		resp = await session.request(method="GET", url=epqs_url)
 		resp.raise_for_status()
 		json_resp = await resp.json()
+
+		log.epqs(f"for {lat_long_arr} returning {json_resp['value']}")
+
+		gtimer.markTimer(timer_name, "eqpsgetHeightAsync")
 		return json_resp["value"]
 

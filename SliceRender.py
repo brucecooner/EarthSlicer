@@ -1,23 +1,27 @@
 from InkscapeSVG import *
+from LogChannels import log
+
 from Slice import SliceDirection, Slice
 
 # TODO:
-#	* sort out vertical coordinate chaos
 #	* vertical scale
 #	* all slices need to be aware of global minimum, adjust to accordingly
-#	* use passed in logger fn
 #	* is there a max layer count in inkscape?
+#	* svg gen uses config: slice length inches
+
+# DONE:
+#	* sort out vertical coordinate chaos
+
+log.addChannel("svg", "svg")
+# log.setChannel("svg", False)
 
 #  -----------------------------------------------------------------
 def sliceToLayer(slice, layer_name, config):
 	slice_layer = InkscapeLayer(layer_name)
 
-
-	# use 	config.slice_svg_length_inches
-
 	slice_length_degrees = slice.sliceLengthDegrees()
 
-	print(f"slice_length_degrees: {slice_length_degrees}")
+	log.svg(f"slice_length_degrees: {slice_length_degrees}")
 
 	# elevations from USGS are in feet, so convert to feet somehow
 	# one fourth of distance around the earth (approximate) divided by degrees in one fourth of a circle
@@ -31,14 +35,14 @@ def sliceToLayer(slice, layer_name, config):
 	slice_feet = feet_per_degree * slice_length_degrees
 	slice_inches = slice_feet * 12.0 # probably a big number
 
-	print(f"slice length inches: {slice_inches}")
-	print(f"slice length feet: {slice_feet}")
-	print(f"slice length miles: {slice_feet / feet_per_mile}")
+	log.svg(f"slice length inches: {slice_inches}")
+	log.svg(f"slice length feet: {slice_feet}")
+	log.svg(f"slice length miles: {slice_feet / feet_per_mile}")
 
 	# okay, now go from the slice's size on earth to the render width
 	slice_inches_to_svg_inches = config["slice_svg_length_inches"] / slice_inches # should be something < 1
 
-	print(f"slice_scale: {slice_inches_to_svg_inches}")
+	log.svg(f"slice_scale: {slice_inches_to_svg_inches}")
 
 	start_y = 12
 
@@ -55,6 +59,7 @@ def sliceToLayer(slice, layer_name, config):
 
 	# oh yeah, y coordinates are reversed cuz screen space
 	for cur_elevation in slice.elevations:
+		log.svg(f"cur_elev: {cur_elevation}")
 		cur_y = start_y - basement_inches
 		current_elevation_in_svg_scale = (cur_elevation* 12) * slice_inches_to_svg_inches * vertical_exaggeration
 		cur_y -= current_elevation_in_svg_scale
@@ -72,13 +77,14 @@ def sliceToLayer(slice, layer_name, config):
 	return slice_layer
 
 #  -----------------------------------------------------------------
-def slicesToSVG(topo_slices, config):
+def slicesToSVG(slices:list[Slice], config:dict):
 	svg = InkscapeSVG()
 
 	cur_slice_number = 1
 	slice_base_name = "slice_"
 
-	for cur_slice in topo_slices.slices:
+	log.todo("svg configuration (layers/file), other stuff")
+	for cur_slice in slices:
 		cur_slice_layer = sliceToLayer(cur_slice, slice_base_name + str(cur_slice_number), config)
 		svg.addNode(cur_slice_layer)
 		cur_slice_number += 1

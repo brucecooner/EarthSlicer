@@ -35,13 +35,26 @@ class HeightMap():
 		# holds discovered points
 		self.map = {}
 
+		# stats
+		self.total_queries = 0
+		self.total_queries_async = 0
+		self.total_misses = 0
+
 	# -----------------------------------------------------------
 	def __repr__(self):
-		string_rep = f"HeightMap {self.name}:\n"
+		string_rep = f"HeightMap {self.name} info:\n"
 		string_rep += f"\tprecision: {self.precision}\n"
 		string_rep += f"\tdecimal_shifter: {self.decimal_shifter}\n"
 		string_rep += f"\tmap size: {len(self.map.keys())}\n"
 
+		return string_rep
+
+	# -----------------------------------------------------------
+	def Stats(self):
+		string_rep = f"HeightMap {self.name} stats:\n"
+		string_rep += f"\tsize: {len(self.map)}\n"
+		string_rep += f"\ttotal_queries: (serial/async) {self.total_queries}/{self.total_queries_async}\n"
+		string_rep += f"\ttotal_misses: {self.total_misses}\n"
 		return string_rep
 
 	# -----------------------------------------------------------
@@ -52,10 +65,9 @@ class HeightMap():
 
 	# -----------------------------------------------------------
 	def get(self, lat, long, fn_on_miss):
-		# this_call_id = id(self)
+		self.total_queries += 1
 
 		log.hmap(f"get({lat},{long}) ")
-		return_val = None
 
 		lat_adjust = self.numToPrecision(lat)
 		long_adjust = self.numToPrecision(long)
@@ -63,8 +75,10 @@ class HeightMap():
 
 		if not coordinate_string in self.map:
 			log.hmap(f"not found...")
+			self.total_misses += 1
 			add_val = fn_on_miss((lat_adjust, long_adjust))
 			self.map[coordinate_string] = add_val
+			self.map_changed = True
 			log.hmap(f"added {add_val}")
 
 		log.hmap(f"returning: {self.map[coordinate_string]}")
@@ -73,9 +87,7 @@ class HeightMap():
 
 	# -----------------------------------------------------------
 	async def getAsync(self, lat, long, fn_on_miss):
-		return_val = 0
-		# this_call_id = id(self)
-
+		self.total_queries_async += 1
 		log.hmap(f"getAsync({lat},{long}) ")
 
 		lat_adjust = self.numToPrecision(lat)
@@ -83,12 +95,14 @@ class HeightMap():
 		coordinate_string = f"{lat_adjust},{long_adjust}"
 
 		if not coordinate_string in self.map:
-			log.hmap(f"not found...")
+			# log.hmap(f"not found...")
+			self.total_misses += 1
 			add_value = await fn_on_miss((lat_adjust, long_adjust))
-			log.hmap(f"added {add_value}")
 			self.map[coordinate_string] = add_value
+			self.map_changed = True
+			log.hmap(f"added {add_value} for {coordinate_string}")
 
-		log.hmap(f"returning: {self.map[coordinate_string]}")
+		log.hmap(f"for {coordinate_string} returning: {self.map[coordinate_string]}")
 
 		return self.map[coordinate_string]
 
@@ -106,6 +120,13 @@ class HeightMap():
 			self.name = data_obj["name"]
 
 		self.map = data_obj["map"]
+
+		self.map_changed = False
+
+	# -----------------------------------------------------------
+	# returns true if state of map has changed since fromDataObj() was called
+	def changed(self):
+		return hasattr(self, "map_changed") and self.map_changed
 
 
 # -------------------------------------------------------------
