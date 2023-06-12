@@ -26,12 +26,16 @@ from TopoSlicer import generateTopoSlices
 #	* config: silence
 # 	* config:input: validate inputs
 #	* config: get rid of all the magic strings on config dict
-#	* config: set async
-#	* config: configurable slice async chunk size
+#	* config: set async? probably not
+#	* config: configurable slice async chunk size?
 #	* config: specify height map filename
 #	* optionally view height map stats
+#	* config: svg layers/file
+#	* svg: id numbers / directions / coordinates on layers
+#	* leading zeros on slice names
 
 # DONE:
+#	* config: make job file required parameter
 #	* config: slice output length
 #	* slice job: read from file
 #	* new name for main file, too close to TopoSlicer class name (went with EarthSlicer for now)
@@ -54,7 +58,7 @@ MinorVersion = 1
 #  -----------------------------------------------------------------
 default_config = {
 	# app concerns
-	"slice_job_filename" : "earth_slice_default_job.json",
+	# "slice_job_filename" : "earth_slice_default_job.json",
 	"async_http" : True,
 	"height_map_filename" : "height_map.json",
 }
@@ -139,13 +143,16 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# command line parsing
+	# config consts (move somewhere sensible at some point)
+	JOB_FILE_CONFIG_PARAM = "job_file"
+
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--job_file", help="file specifying an earth slice job") #refine this later
+	parser.add_argument(JOB_FILE_CONFIG_PARAM, help="json file specifying an earth slice job") #refine this later
 
 	args = parser.parse_args()
 
 	if args.job_file:
-		main_config["slice_job_filename"] = args.job_file
+		main_config["slice_job_filename"] = args.job_file[len(JOB_FILE_CONFIG_PARAM) + 1:] # go past param and equals sign
 
 	log.todo("check for silent mode, turn off log channels")
 
@@ -154,7 +161,6 @@ def main_func():
 	log.echo()
 	log.echo(f"==================== TopoVSlicer-Py ({MajorVersion}.{MinorVersion}) ====================")
 	log.echo()
-
 
 	log.echo("config:")
 	# print config

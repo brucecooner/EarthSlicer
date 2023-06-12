@@ -76,7 +76,7 @@ def generateTopoSlices(config):
 											config["south_edge"], current_long,
 											config["number_of_elevations"],
 											config["slice_direction"],
-											f"slice_{slice_num}")
+											f"{slice_num}")
 
 			gtimer.markTimer('generate_slice', 'generate_slices')
 

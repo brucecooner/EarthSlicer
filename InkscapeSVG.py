@@ -26,8 +26,14 @@ class InkscapePath:
 	def __init__(self, start_x, start_y) -> None:
 		self.path_text = f"M {inches_to_pixels(start_x)},{inches_to_pixels(start_y)}"
 
-	def move(self, x,y):
+	def draw(self, x,y):
 		self.path_text += f" {inches_to_pixels(x)},{inches_to_pixels(y)}"
+
+	def move(self, x,y):
+		self.path_text += f"M {inches_to_pixels(x)},{inches_to_pixels(y)}"
+
+	def close(self):
+		self.path_text += " Z"
 
 	def style_text(self):
 		return 'style="opacity:0.981447;fill:none;fill-opacity:0.992157;stroke:#000000;stroke-width:0.5"'
@@ -36,7 +42,7 @@ class InkscapePath:
 	def write(self, file_obj):
 		node_text = f'<path\n\
        {self.style_text()}\n\
-       d="{self.path_text} Z"/>\n'
+       d="{self.path_text}"/>\n'	# note the " Z" was removed here, so paths don't close!
 		
 		file_obj.write(node_text)
 

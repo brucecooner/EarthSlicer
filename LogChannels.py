@@ -35,6 +35,7 @@
 #	 		silence a channel THROUGH that channel? like... log.echo.silence(True)
 #			Oof, that's going to be making the channels into callable classes...give me a few minutes on that one.
 #	* dump a channel (already storing all messages)
+#	* auto-create channels on first call? Hmmm...
 
 
 #  ----------------------------------------------------------------------------
