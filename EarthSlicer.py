@@ -23,6 +23,8 @@ from TopoSlicer import generateTopoSlices
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
+#	* move support stuff into utils/ folder
+#	* config: break slice job into slice config / svg config
 #	* config: silence
 # 	* config:input: validate inputs
 #	* config: get rid of all the magic strings on config dict
@@ -33,6 +35,7 @@ from TopoSlicer import generateTopoSlices
 #	* config: svg layers/file
 #	* svg: id numbers / directions / coordinates on layers
 #	* leading zeros on slice names
+#	* far future: flatten areas
 
 # DONE:
 #	* config: make job file required parameter
