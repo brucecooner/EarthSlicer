@@ -1,8 +1,8 @@
 from enum import Enum
 import asyncio
 
-from LogChannels import log
-from GTimer import gtimer
+from support.LogChannels import log
+from support.GTimer import gtimer
 
 # TODO:
 #	* fingerprint for validation errors (coordinates)  (huh? was I drunk when I wrote this?)
@@ -16,7 +16,7 @@ from GTimer import gtimer
 #	* no need to keep points around, generate them on demand when elevations are needed then dump them
 
 log.addChannel("slice", "slice")
-# log.setChannel("slice", False)
+log.setChannel("slice", False)
 
 #  -----------------------------------------------------------------
 class SliceDirection(Enum):
@@ -142,7 +142,7 @@ class Slice:
 
 		cur_chunk_index = 0
 		chunk_size = 20
-		log.todo(f"configurable slice chunk size")
+		log.slice(f"slice todo: configurable slice chunk size")
 
 		# this allows proper ordering of elevations, because they can arrive out of order from the async get
 		# keys are just the numeric index of the point

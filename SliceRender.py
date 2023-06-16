@@ -1,5 +1,5 @@
 from InkscapeSVG import *
-from LogChannels import log
+from support.LogChannels import log
 
 from Slice import SliceDirection, Slice
 

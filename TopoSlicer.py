@@ -1,8 +1,9 @@
 import jsons
 
-from LogChannels import log
-from GTimer import gtimer
+from support.LogChannels import log
+from support.GTimer import gtimer
 
+from SliceJobConfig import SliceJobConfig
 from Slice import Slice, SliceDirection
 
 log.addChannel("slicer", "slicer: ")
@@ -47,35 +48,34 @@ def topoSlicerValidateConfig(test_config:dict, throw_on_fail:bool = True):
 
 # ------------------------------------------
 # generates slices from given config
-def generateTopoSlices(config):
+def generateTopoSlices(config:SliceJobConfig):
 	log.slicer("generating slices...")
 
 	# this should convert the slice dir from string=>enum
-	topoSlicerValidateConfig(config)
+	# topoSlicerValidateConfig(config)
 	# convert slice direction to Class enum (messy stuff here!)
-	config["slice_direction"] = SliceDirection.toSliceDirection(config["slice_direction"])
+	# config["slice_direction"] = SliceDirection.toSliceDirection(config["slice_direction"])
 
 	slices = []
-
 	slice_num = 0
 
 	# some messy looping shit, hey i drunk now, back off
-	if config["slice_direction"] == SliceDirection.NorthSouth:
+	if config.slice_direction == SliceDirection.NorthSouth:
 		# travel west -> east, taking those delicious north/south slices
 		# so start lat and end lat are constant over the everything
-		current_long = config["west_edge"]
+		current_long = config.west_edge
 		if config["number_of_slices"] > 1:
-			long_step = calcStep(config["west_edge"], config["east_edge"], config["number_of_slices"])
+			long_step = calcStep(config.west_edge, config.east_edge, config.number_of_slices)
 		else:
 			long_step = 0
 
-		for current_step in range(config["number_of_slices"]):
+		for current_step in range(config.number_of_slices):
 			# do some shit
 			gtimer.startTimer('generate_slice')
-			current_slice = Slice(	config["north_edge"], current_long,
-											config["south_edge"], current_long,
-											config["number_of_elevations"],
-											config["slice_direction"],
+			current_slice = Slice(	config.north_edge, current_long,
+											config.south_edge, current_long,
+											config.number_of_elevations,
+											config.slice_direction,
 											f"{slice_num}")
 
 			gtimer.markTimer('generate_slice', 'generate_slices')
@@ -86,15 +86,15 @@ def generateTopoSlices(config):
 	else:
 		# slicing west/east
 		# so traveling north -> south, taking w/e slices
-		current_lat = config["north_edge"]
-		lat_step = calcStep(config["north_edge"], config["south_edge"], config["number_of_slices"])
+		current_lat = config.north_edge
+		lat_step = calcStep(config.north_edge, config.south_edge, config.number_of_slices)
 
-		for current_step in range(config["number_of_slices"]):
+		for current_step in range(config.number_of_slices):
 			gtimer.startTimer('generate_slice')
-			current_slice = Slice(	current_lat, config["west_edge"],
-											current_lat, config["east_edge"],
-											config["number_of_elevations"],
-											config["slice_direction"],
+			current_slice = Slice(	current_lat, config.west_edge,
+											current_lat, config.east_edge,
+											config.number_of_elevations,
+											config.slice_direction,
 											f"slice_{slice_num}")
 
 			gtimer.markTimer('generate_slice', 'generate_slices')

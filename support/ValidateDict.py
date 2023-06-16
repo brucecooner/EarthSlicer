@@ -87,7 +87,7 @@ def validateDict(validate_dict:dict, rules:dict, throw_on_fail:bool = True, trac
 	if not validation_result and throw_on_fail:
 		trace(f"failed and throw_on_fail")
 		error_msg = error_msg_separator.join(failures)
-		raise Exception(f"validateDict(): {error_msg}")
+		raise Exception(f"{error_msg}")
 
 	return validation_result if validation_result else ( validation_result, failures)
 
@@ -97,7 +97,7 @@ def validateDict(validate_dict:dict, rules:dict, throw_on_fail:bool = True, trac
 # -------------------------------------------------------------
 # -------------------------------------------------------------
 if __name__ == "__main__":
-	from TestSupport import testForException, testForNoException
+	from support.TestSupport import testForException, testForNoException
 
 	# -------------------------------------------------------------------------------------------------------
 	def test_checkValidator():

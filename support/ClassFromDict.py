@@ -1,5 +1,9 @@
 # class that takes a dict and adds specified keys as class memebers
 class ClassFromDict:
+	def __init__(self, from_dict = None):
+		if from_dict:
+			self.addProperties(from_dict)
+
 	def addProperties(self, src_dict:dict, only_keys:list = None):
 		if only_keys:
 			for cur_key in only_keys:

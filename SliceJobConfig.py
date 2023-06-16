@@ -1,7 +1,7 @@
 # configuration of a slice job
-from ClassFromDict import ClassFromDict
-from ValidateDict import validateDict, checkValidator
-from LogChannels import log
+from support.ClassFromDict import ClassFromDict
+from support.ValidateDict import validateDict, checkValidator
+from support.LogChannels import log
 
 from Slice import SliceDirection
 
@@ -15,11 +15,10 @@ log.setChannel("sjc", False)
 # ------------------------------------------------------------------------------------------------------
 class SliceJobConfig(ClassFromDict):
 	def __init__(self, slice_config: dict = None):
-		if slice_config:
-			SliceJobConfig.validateConfig(slice_config)
-			self.fromDict(slice_config)
-		else:
-			self.fromDict(SliceJobConfig.getDefaultConfig())
+		use_config = slice_config if slice_config else SliceJobConfig.getDefaultConfig()
+		# just throw an exception, if somebody needs it they can catch it
+		SliceJobConfig.validateConfig(use_config, True)
+		self.addProperties(use_config)
 
 	# -------------------------------------------------------------------------------------
 	def fromDict(self, slice_config:dict):
@@ -37,7 +36,7 @@ class SliceJobConfig(ClassFromDict):
 		# print all keys in validator
 		validator = SliceJobConfig.getConfigValidator()
 		for cur_rule_key  in validator.keys():
-			srep += f"\t{cur_rule_key}: {getattr(self, cur_rule_key)}\n"
+			srep += f"   {cur_rule_key}: {getattr(self, cur_rule_key)}\n"
 
 		return srep
 
@@ -72,7 +71,7 @@ class SliceJobConfig(ClassFromDict):
 			"west_edge" : 1.0
 		}
 		log.sjc(f"getDefaultConfig(): {default_config}")
-		# just validate this every time
+		# just validate this every time with exception
 		SliceJobConfig.validateConfig(default_config, True)
 		return default_config
 
@@ -83,10 +82,6 @@ class SliceJobConfig(ClassFromDict):
 		log.sjc(f"validateConfig(): {slice_config}")
 
 		validation_result = validateDict(slice_config, SliceJobConfig.getConfigValidator(), throw_on_fail = throw_on_fail, trace_enabled=False)
-
-		# if True == validation_result["result"]:
-		# 	if throw_on_fail:
-		# 		raise Exception(validation_result["message"])
 
 		return validation_result
 
@@ -102,7 +97,7 @@ checkValidator(SliceJobConfig.getConfigValidator())
 # -------------------------------------------------------------
 # -------------------------------------------------------------
 if __name__ == "__main__":
-	from TestSupport import testForException, testForNoException
+	from support.TestSupport import testForException, testForNoException
 
 	print("----- Slice Job Config Test -----")
 

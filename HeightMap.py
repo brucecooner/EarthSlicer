@@ -13,7 +13,7 @@ import random
 
 import asyncio
 
-from LogChannels import log
+from support.LogChannels import log
 
 
 log.addChannel("hmap", "hmap")
@@ -135,7 +135,7 @@ class HeightMap():
 # -------------------------------------------------------------
 if __name__ == "__main__":
 	from USGS_EPQS import getHeightUSGS
-	from TimingTrace import TimingTrace
+	from support.TimingTrace import TimingTrace
 
 	llhm_timer = TimingTrace("HeightMap")
 	llhm_timer.start()

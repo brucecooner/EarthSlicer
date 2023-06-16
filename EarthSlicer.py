@@ -1,4 +1,5 @@
 # system
+from enum import Enum
 import jsons
 import os
 import asyncio
@@ -6,14 +7,16 @@ from aiohttp import ClientSession
 import argparse
 
 # support
-from LogChannels import log
-from GTimer import gtimer
-from TimingTrace import TimingTrace
+from support.LogChannels import log
+from support.GTimer import gtimer
+# from support.TimingTrace import TimingTrace
+from support.ClassFromDict import ClassFromDict
 
 from HeightMap import HeightMap
 from USGS_EPQS import USGS_EPQS
 
 # slicing
+from SliceJobConfig import SliceJobConfig
 from Slice import Slice, SliceDirection
 from SliceRender import slicesToSVG
 from TopoSlicer import generateTopoSlices
@@ -80,28 +83,22 @@ report_timings = True
 
 
 #  -----------------------------------------------------------------
-#  -----------------------------------------------------------------
 # TYPES
 #  -----------------------------------------------------------------
-#  -----------------------------------------------------------------
 
 
-#  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
 # CONSTANTS
 #  -----------------------------------------------------------------
-#  -----------------------------------------------------------------
+SliceJobFileKeys = ClassFromDict({"SliceJob":"slices", "SVG":"svg"})
+CommandLineParams = ClassFromDict({"JobFilename": "job_file"})
 
-#  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
 #	VARIABLES
 #  -----------------------------------------------------------------
-#  -----------------------------------------------------------------
 
 #  -----------------------------------------------------------------
-#  -----------------------------------------------------------------
 #	FUNCTIONS
-#  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 def getElevations(slices:list[Slice], height_map:HeightMap):
@@ -126,19 +123,52 @@ async def getElevationsAsync(slices:list[Slice], height_map:HeightMap):
 			log.slicer(f'slice: {cur_slice.name}')
 			await cur_slice.getElevationsAsync(getHeightFromMapAsync)
 
+# --------------------------------------------------------------------------
+# returns ( True/False, error message on failure|job file bits)
+# how does this know the key names of parts of the job?
+def loadJobFile(job_filename):
+	if os.path.isfile(job_filename):
+		log.echo(f"loading job file: {job_filename}")
+		with open(job_filename, "rt") as slice_job_file_obj:
+			raw_data = slice_job_file_obj.read()
+			main_obj = jsons.loads(raw_data)
+
+			# pick pieces out of main obj
+			return_dict = {}
+			# slice job is required
+			if not SliceJobFileKeys.SliceJob in main_obj:
+				return (False, f"job file did not contain slice config key '{SliceJobFileKeys.SliceJob}'")
+		
+			return_dict[SliceJobFileKeys.SliceJob] = main_obj[SliceJobFileKeys.SliceJob]
+			# svg is actually optional
+			if SliceJobFileKeys.SVG in main_obj:
+				return_dict[SliceJobFileKeys.SVG] = main_obj[SliceJobFileKeys.SVG]
+
+			return (True, return_dict)
+
+	# file was not found
+	return (False, f"job file not found: {job_filename}")
+
+#  ----------------------------------------------------------------------------
+def quitWithError(error_msg):
+	log.echo()
+	log.echo("ERROR: " + error_msg)
+	log.echo("quitting")
+	quit(1)
+
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 # MAIN (FUNC)
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 def main_func():
+	gtimer.startTimer("main")
+
 	log.addChannel("echo")
 	log.addChannel("error", "Error: ")
 	log.addChannel("debug", "debug: ")
 	log.setChannel("debug", False)
 	log.addChannel("todo", "TODO: ")
-
-	main_timer = TimingTrace("TopoVSlicerPy")
 
 	# --------------------------------------------------------------------------
 	# get config defaults (some may get overridden later)
@@ -146,16 +176,13 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# command line parsing
-	# config consts (move somewhere sensible at some point)
-	JOB_FILE_CONFIG_PARAM = "job_file"
-
 	parser = argparse.ArgumentParser()
-	parser.add_argument(JOB_FILE_CONFIG_PARAM, help="json file specifying an earth slice job") #refine this later
+	parser.add_argument(CommandLineParams.JobFilename, help="json file specifying an earth slice job") #refine this later
 
 	args = parser.parse_args()
 
 	if args.job_file:
-		main_config["slice_job_filename"] = args.job_file[len(JOB_FILE_CONFIG_PARAM) + 1:] # go past param and equals sign
+		main_config["slice_job_filename"] = args.job_file
 
 	log.todo("check for silent mode, turn off log channels")
 
@@ -165,47 +192,46 @@ def main_func():
 	log.echo(f"==================== TopoVSlicer-Py ({MajorVersion}.{MinorVersion}) ====================")
 	log.echo()
 
-	log.echo("config:")
+	log.echo("main config:")
 	# print config
 	for (k,v) in main_config.items():
-		log.echo(f"\t{k} : {v}")
+		log.echo(f"   {k} : {v}")
 
 	# --------------------------------------------------------------------------
 	# load job file
-	log.echo()
-	log.echo("loading job file")
-	if os.path.isfile(main_config["slice_job_filename"]):
-		raw_data = ""
-		with open(main_config["slice_job_filename"], "rt") as slice_job_file_obj:
-			raw_data = slice_job_file_obj.read()
-			main_config["slice_job"] = jsons.loads(raw_data)
-			log.echo("loaded")
-	else:
-		log.error(f"job file {main_config['slice_job_filename']} not found")
+	load_job_file_result = loadJobFile(main_config["slice_job_filename"])
+	if not load_job_file_result[0]:
+		log.echo()
+		quitWithError(load_job_file_result[1])
 
-	log.todo("print this prettier")
-	log.echo(f"slice job: {main_config['slice_job']}")
+	job_file_objects = load_job_file_result[1]
+
+	# get slice job config
+	try:
+		slice_job = SliceJobConfig(job_file_objects[SliceJobFileKeys.SliceJob])
+	except Exception as exc:
+		quitWithError(f"{exc}")
+
+	log.echo(f"slice job: {slice_job}")
 
 	# --------------------------------------------------------------------------
 	# create height map
-	main_timer.start()
 
 	log.echo()
 	log.echo("creating height map")
+	gtimer.startTimer("load height map")
+
 	main_height_map = HeightMap(name = "MHM")
 
 	# have map file?
 	if len(main_config["height_map_filename"]):
 		log.echo(f"Loading height map from file: {main_config['height_map_filename']}")
 		if os.path.isfile(main_config["height_map_filename"]):
-			gtimer.startTimer("loadHmap")
 			raw_data = ""
 			with open(main_config["height_map_filename"], "rt") as height_map_file_obj:
 				raw_data = height_map_file_obj.read()
 				height_map_data_obj = jsons.loads(raw_data)
 				main_height_map.fromDataObj(height_map_data_obj)
-			gtimer.markTimer("loadHmap", "loadHMap")
-			log.echo("loaded")
 		else:
 			log.echo("file not found")
 	else:
@@ -214,35 +240,42 @@ def main_func():
 	log.echo()
 	log.echo(str(main_height_map))
 
-	main_timer.mark("load height map")
+	gtimer.markTimer("load height map")
 
 	# --------------------------------------------------------------------------
 	# generate slices
 	log.echo("generating slices")
-	main_slices = generateTopoSlices(main_config["slice_job"])
+	gtimer.startTimer("generate slices")
 
-	main_timer.mark("generate slices")
+	main_slices = generateTopoSlices(slice_job)
+	gtimer.markTimer("generate slices")
 
 	# --------------------------------------------------------------------------
 	# get elevations
 	log.echo("getting elevations")
+	gtimer.startTimer("get elevations")
 
 	if main_config["async_http"]:
 		asyncio.run(getElevationsAsync(main_slices, main_height_map))
 	else:
 		getElevations(main_slices, main_height_map)
 
-	main_timer.mark("generate elevations")
+	gtimer.markTimer("get elevations")
 
 	# --------------------------------------------------------------------------
 	# generate svg's
-	log.echo("generating svg files")
-	slicesToSVG(main_slices, main_config["slice_job"])
-	main_timer.mark("generate svg")
+	# log.echo("generating svg files")
+	# gtimer.startTimer("generate svg file(s)")
+
+	# slicesToSVG(main_slices, main_config["slice_job"])
+
+	# gtimer.markTimer("generate svg file(s)")
 
 	# --------------------------------------------------------------------------
 	# write height map if changed
 	if main_height_map.changed():
+		gtimer.startTimer("save height map")
+
 		log.echo(f"height map changed, saving")
 		height_map_data_obj = main_height_map.toDataObj()
 
@@ -250,15 +283,16 @@ def main_func():
 			height_map_file_obj.write(jsons.dumps(height_map_data_obj, {"indent":3}))
 			log.echo(f'height map saved to: {main_config["height_map_filename"]}')
 
+		gtimer.markTimer("save height map")
+
+	gtimer.markTimer("main")
+
 	# --------------------------------------------------------------------------
 	# height map final stats
 	log.echo()
 	log.echo(main_height_map.Stats())
 
 	if report_timings:
-		log.echo("")
-		log.echo(main_timer)
-
 		log.echo()
 		log.echo(gtimer.report())
 

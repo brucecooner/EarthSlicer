@@ -1,8 +1,8 @@
 import requests
 from aiohttp import ClientSession
 
-from LogChannels import log
-from GTimer import gtimer
+from support.LogChannels import log
+from support.GTimer import gtimer
 
 log.addChannel("epqs", "epqs")
 log.setChannel("epqs", False)

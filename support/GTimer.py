@@ -26,6 +26,13 @@ class GTimer:	# The G stands for Groceries
 		self.timers = {}
 
 	# ----------------------------------------------------
+	def __repr__(self):
+		str_rep = "GTimer:"
+		str_rep += f"   timers: {self.timers}\n"
+		str_rep += f"   timings: {self.timings}\n"
+		return str_rep
+
+	# ----------------------------------------------------
 	def addTiming(self, name, time):
 		if not name in self.timings:
 			# could just keep an array of all the timings, but takes less memory to accumulate them
@@ -44,7 +51,11 @@ class GTimer:	# The G stands for Groceries
 		self.timers[name] = time.perf_counter()
 
 	# ----------------------------------------------------
-	def markTimer(self, timer_name, timing_name):
+	# if timing name is not specified, taken from timer_name
+	def markTimer(self, timer_name, timing_name = None):
+		if not timing_name:
+			timing_name = timer_name
+
 		mark_time = time.perf_counter()
 
 		if not timer_name in self.timers:
