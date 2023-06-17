@@ -18,7 +18,7 @@ class SliceJobConfig(ClassFromDict):
 		use_config = slice_config if slice_config else SliceJobConfig.getDefaultConfig()
 		# just throw an exception, if somebody needs it they can catch it
 		SliceJobConfig.validateConfig(use_config, True)
-		self.addProperties(use_config)
+		self.fromDict(use_config)
 
 	# -------------------------------------------------------------------------------------
 	def fromDict(self, slice_config:dict):

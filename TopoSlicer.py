@@ -63,6 +63,7 @@ def generateTopoSlices(config:SliceJobConfig):
 	if config.slice_direction == SliceDirection.NorthSouth:
 		# travel west -> east, taking those delicious north/south slices
 		# so start lat and end lat are constant over the everything
+		log.slicer("north south")
 		current_long = config.west_edge
 		if config["number_of_slices"] > 1:
 			long_step = calcStep(config.west_edge, config.east_edge, config.number_of_slices)
@@ -81,6 +82,7 @@ def generateTopoSlices(config:SliceJobConfig):
 			slice_num += 1
 			current_long += long_step
 	else:
+		log.slicer("west east")
 		# slicing west/east
 		# so traveling north -> south, taking w/e slices
 		current_lat = config.north_edge

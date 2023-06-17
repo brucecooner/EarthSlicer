@@ -18,7 +18,7 @@ from Slice import SliceDirection, Slice
 #	* sort out vertical coordinate chaos
 
 log.addChannel("svg", "svg")
-# log.setChannel("svg", False)
+log.setChannel("svg", False)
 
 
 #  -----------------------------------------------------------------
@@ -255,6 +255,7 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 	# at end, move back DOWN to min_y
 	cur_x -= x_step_inches	# remove last x step
 	slice_path.draw(cur_x, start_y)
+	slice_path.close()
 
 	slice_layer.add_node(slice_path)
 
@@ -268,27 +269,11 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 	theight = 0.35
 	spacing = 0.1
 
-	# add direction hint next to arrow
+	# todo: add direction hint next to arrow
 
-	# testing
-	# test_func = render1
-	# t_pathns = test_func(tstart_x, tstart_y, twidth, theight)
-	# slice_layer.add_node(t_pathns)
-
-	cur_start_x = tstart_x
-
-	print(slice.name)
-
-	# paths = renderInt(render_num, tstart_x, tstart_y, twidth, theight, spacing)
 	paths = renderNumString(slice.name, tstart_x, tstart_y, twidth, theight, spacing)
 	for cur_path in paths:
 		slice_layer.add_node(cur_path)
-
-	# for cur_num in range(10):
-	# 	cur_render_func = num_render_funcs[cur_num]
-	# 	cur_num_path = cur_render_func(cur_start_x, tstart_y, twidth, theight)
-	# 	slice_layer.add_node(cur_num_path)
-	# 	cur_start_x += twidth + spacing
 
 	return slice_layer
 

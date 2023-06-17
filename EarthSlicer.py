@@ -26,6 +26,7 @@ from TopoSlicer import generateTopoSlices
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
+#	* svg: smooth nodes
 #	* config: silence option
 # 	* config:input: validate inputs
 #	* config: set async? probably not
