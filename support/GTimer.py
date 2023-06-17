@@ -70,7 +70,7 @@ class GTimer:	# The G stands for Groceries
 		self.timers.pop(timer_name, None)
 
 	# ----------------------------------------------------
-	def report(self, ind = "\t"):
+	def report(self, ind = "   "):
 		str_rep = "Timings:\n"
 		for cur_name, cur_timing in self.timings.items():
 			cur_avg = cur_timing['total_time'] / cur_timing['count']

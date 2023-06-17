@@ -56,6 +56,8 @@ class Slice:
 		self.minimum_elevation = None
 		self.maximum_elevation = None
 
+		log.slice(f"constructed slice: {self.name}")
+
 	# ------------------------------
 	@staticmethod
 	def dataObjFields():
@@ -104,9 +106,10 @@ class Slice:
 			cur_lat += lat_step
 			cur_long += long_step
 
-		gtimer.markTimer(f"{self.name}_genpoints", "sliceGenPoints")
+		gtimer.markTimer(f"{self.name}_genpoints", "generate slice points")
 
 		log.slice(f"generated {len(points)} points")
+		log.slice(f"{points}")
 		return points
 
 	# ------------------------------
@@ -134,7 +137,7 @@ class Slice:
 		points = self.generatePoints()
 		self.elevations = []
 
-		# local func to get elevation and put it at specific index in a list
+		# local func to get elevation and put it on a specific key in a map dict
 		# because elevations may arrive back out of order
 		async def getElevationToIndex(point, elevation_map, point_index):
 			elevation = await elevation_func(point)
@@ -166,7 +169,7 @@ class Slice:
 		self.minimum_elevation = min(self.elevations)
 		self.maximum_elevation = max(self.elevations)
 
-		gtimer.markTimer(f"{self.name}_getElevAsync", "sliceGetElevsAsync")
+		gtimer.markTimer(f"{self.name}_getElevAsync", "slice get elevations async")
 
 
 	# ------------------------------------------

@@ -9,7 +9,6 @@ import argparse
 # support
 from support.LogChannels import log
 from support.GTimer import gtimer
-# from support.TimingTrace import TimingTrace
 from support.ClassFromDict import ClassFromDict
 
 from HeightMap import HeightMap
@@ -17,7 +16,8 @@ from USGS_EPQS import USGS_EPQS
 
 # slicing
 from SliceJobConfig import SliceJobConfig
-from Slice import Slice, SliceDirection
+from SVGConfig import SVGConfig
+from Slice import Slice
 from SliceRender import slicesToSVG
 from TopoSlicer import generateTopoSlices
 
@@ -26,21 +26,22 @@ from TopoSlicer import generateTopoSlices
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-#	* move support stuff into utils/ folder
-#	* config: break slice job into slice config / svg config
-#	* config: silence
+#	* config: silence option
 # 	* config:input: validate inputs
-#	* config: get rid of all the magic strings on config dict
 #	* config: set async? probably not
 #	* config: configurable slice async chunk size?
-#	* config: specify height map filename
+#	* config: specify height map filename?
 #	* optionally view height map stats
 #	* config: svg layers/file
 #	* svg: id numbers / directions / coordinates on layers
 #	* leading zeros on slice names
 #	* far future: flatten areas
+#	* progress feedback when getting lots of elevations
 
 # DONE:
+#	* config: get rid of all the magic strings on config dict
+#	* config: break slice job into slice config / svg config
+#	* move support stuff into utils/ folder
 #	* config: make job file required parameter
 #	* config: slice output length
 #	* slice job: read from file
@@ -199,6 +200,7 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# load job file
+	log.echo()
 	load_job_file_result = loadJobFile(main_config["slice_job_filename"])
 	if not load_job_file_result[0]:
 		log.echo()
@@ -206,17 +208,33 @@ def main_func():
 
 	job_file_objects = load_job_file_result[1]
 
+	# --------------------------------------------------------------------------
 	# get slice job config
 	try:
-		slice_job = SliceJobConfig(job_file_objects[SliceJobFileKeys.SliceJob])
+		main_slice_job = SliceJobConfig(job_file_objects[SliceJobFileKeys.SliceJob])
 	except Exception as exc:
 		quitWithError(f"{exc}")
 
-	log.echo(f"slice job: {slice_job}")
+	log.echo(f"slice job:")
+	log.echo(f"{main_slice_job}")
+
+	# --------------------------------------------------------------------------
+	# get svg config (if present)
+	main_svg_config = None
+	if SliceJobFileKeys.SVG in job_file_objects:
+		try:
+			main_svg_config = SVGConfig(job_file_objects[SliceJobFileKeys.SVG])
+		except Exception as exc:
+			quitWithError(f"{exc}")
+
+		log.echo(f"svg config:")
+		log.echo(f"{main_svg_config}")
+	else:
+		log.echo("no svg config specified")
+
 
 	# --------------------------------------------------------------------------
 	# create height map
-
 	log.echo()
 	log.echo("creating height map")
 	gtimer.startTimer("load height map")
@@ -244,11 +262,11 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# generate slices
-	log.echo("generating slices")
-	gtimer.startTimer("generate slices")
+	log.echo("generate slices")
+	gtimer.startTimer("generate all slices")
 
-	main_slices = generateTopoSlices(slice_job)
-	gtimer.markTimer("generate slices")
+	main_slices = generateTopoSlices(main_slice_job)
+	gtimer.markTimer("generate all slices")
 
 	# --------------------------------------------------------------------------
 	# get elevations
@@ -264,12 +282,15 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# generate svg's
-	# log.echo("generating svg files")
-	# gtimer.startTimer("generate svg file(s)")
+	if main_svg_config:
+		log.echo("generating svg files")
+		gtimer.startTimer("generate svg file(s)")
 
-	# slicesToSVG(main_slices, main_config["slice_job"])
+		slicesToSVG(main_slices, main_svg_config)
 
-	# gtimer.markTimer("generate svg file(s)")
+		gtimer.markTimer("generate svg file(s)")
+	else:
+		log.echo("no svg config in job file, skipping svg generation")
 
 	# --------------------------------------------------------------------------
 	# write height map if changed

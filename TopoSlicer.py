@@ -16,7 +16,7 @@ log.setChannel("slicer", False)
 def calcStep(start, end, number_of_points):
 	difference = end - start
 
-	step = difference / (number_of_points - 1)
+	step = difference / max(number_of_points - 1, 1)
 
 	return step
 
@@ -71,14 +71,11 @@ def generateTopoSlices(config:SliceJobConfig):
 
 		for current_step in range(config.number_of_slices):
 			# do some shit
-			gtimer.startTimer('generate_slice')
 			current_slice = Slice(	config.north_edge, current_long,
 											config.south_edge, current_long,
 											config.number_of_elevations,
 											config.slice_direction,
 											f"{slice_num}")
-
-			gtimer.markTimer('generate_slice', 'generate_slices')
 
 			slices.append(current_slice)
 			slice_num += 1
@@ -90,14 +87,14 @@ def generateTopoSlices(config:SliceJobConfig):
 		lat_step = calcStep(config.north_edge, config.south_edge, config.number_of_slices)
 
 		for current_step in range(config.number_of_slices):
-			gtimer.startTimer('generate_slice')
+			gtimer.startTimer('generate single slice')
 			current_slice = Slice(	current_lat, config.west_edge,
 											current_lat, config.east_edge,
 											config.number_of_elevations,
 											config.slice_direction,
-											f"slice_{slice_num}")
+											f"{slice_num}")
 
-			gtimer.markTimer('generate_slice', 'generate_slices')
+			gtimer.markTimer('generate single slice')
 
 			slices.append(current_slice)
 			slice_num += 1

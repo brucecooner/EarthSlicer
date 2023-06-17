@@ -31,7 +31,6 @@ class SliceJobConfig(ClassFromDict):
 	# ------------------------------------------------------------------------------------------------------
 	def __repr__(self):
 		srep = ""
-		srep += "SliceJobConfig:\n"
 
 		# print all keys in validator
 		validator = SliceJobConfig.getConfigValidator()

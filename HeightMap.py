@@ -7,14 +7,12 @@
 #		* You specify the function that will fill the map for unknown coordinates.
 #		* A precision setting of 0.0001 degrees (4 decimal places) should represent 
 # 		  about 30 feet, probably more than good enough for my use
-import jsons
-from threading import Lock
-import random
+
+#	TODO:
+#	* toggle ability to count requests to coordinates to detect lots of super sampling
 
 import asyncio
-
 from support.LogChannels import log
-
 
 log.addChannel("hmap", "hmap")
 log.setChannel("hmap", False)
@@ -31,6 +29,9 @@ class HeightMap():
 		# multiplier that shifts decimals up/down when reducing precision
 		self.decimal_shifter = pow(10,self.precision)
 		self.name = name
+
+		# track locations that are in the await state
+		self.pending_async_requests = {}
 
 		# holds discovered points
 		self.map = {}
@@ -86,6 +87,21 @@ class HeightMap():
 		return self.map[coordinate_string]
 
 	# -----------------------------------------------------------
+	# await-able method to use when the same coordinate is 
+	# requested twice asynchronously
+	# Rather than issuing another request, this method is fed the
+	# coordinates to wait for
+	async def asyncWaitForCoordinates(self, coordinate_string):
+		log.hmap(f"waitForCoordinates({coordinate_string})")
+		waiting_coordinates = coordinate_string
+		while True:
+			# wait a little bit so other async things can run
+			await asyncio.sleep(0.3)
+			if waiting_coordinates in self.map:
+				log.hmap(f"waitForCoordinates(): found coords, leaving")
+				break
+
+	# -----------------------------------------------------------
 	async def getAsync(self, lat, long, fn_on_miss):
 		self.total_queries_async += 1
 		log.hmap(f"getAsync({lat},{long}) ")
@@ -95,12 +111,22 @@ class HeightMap():
 		coordinate_string = f"{lat_adjust},{long_adjust}"
 
 		if not coordinate_string in self.map:
-			# log.hmap(f"not found...")
-			self.total_misses += 1
-			add_value = await fn_on_miss((lat_adjust, long_adjust))
-			self.map[coordinate_string] = add_value
-			self.map_changed = True
-			log.hmap(f"added {add_value} for {coordinate_string}")
+			# see if this coordinate is already awaiting
+			if not coordinate_string in self.pending_async_requests:
+				# not waiting, proceed
+				self.pending_async_requests[coordinate_string] = 1
+
+				self.total_misses += 1
+				add_value = await fn_on_miss((lat_adjust, long_adjust))
+				self.map[coordinate_string] = add_value
+				self.map_changed = True
+				log.hmap(f"added {add_value} for {coordinate_string}")
+				# remove this request from pending map
+				del self.pending_async_requests[coordinate_string]
+			else:
+				# wait on the already pending request, once it's done this coordinate will be in the map
+				log.hmap("got redundant request")
+				await self.asyncWaitForCoordinates(coordinate_string)
 
 		log.hmap(f"for {coordinate_string} returning: {self.map[coordinate_string]}")
 
