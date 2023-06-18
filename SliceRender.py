@@ -5,11 +5,12 @@ from SVGConfig import SVGConfig
 from Slice import SliceDirection, Slice
 
 # TODO:
+#	* weird little bug where last (rightmost segment) isn't smoothed?
 #	* use vertical scale
 #	* all slices need to be aware of global minimum, adjust to accordingly
 #	* is there a max layer count in inkscape?
 #	* svg gen uses config: slice length inches
-#	* PROPERLY render chars
+#	* PROPERLY render chars?  Ugh, fonts
 #	* logic to render N/W lettering
 #	* id numbers, whenever that is sorted
 #	* number rendering to its own module or something
@@ -19,7 +20,6 @@ from Slice import SliceDirection, Slice
 
 log.addChannel("svg", "svg")
 log.setChannel("svg", False)
-
 
 #  -----------------------------------------------------------------
 # puts start x,y at lower left corner
@@ -40,6 +40,14 @@ def drawToIndex(path, sp, index):
 #  -----------------------------------------------------------------
 def moveToIndex(path, sp, index):
 	path.move(sp[index][0], sp[index][1])
+
+#  -----------------------------------------------------------------
+def renderCross(x, y, width, height, path):
+	path.move(x - (width* 0.5), y)
+	path.draw(x + (width*0.5), y)
+	path.move(x, y - (height*0.5))
+	path.draw(x, y + (height*0.5))
+	return path
 
 #  -----------------------------------------------------------------
 # start_x,start_y specifies end of arrow shaft, tip is "screen left" (decreasing x) of end
@@ -196,7 +204,14 @@ def renderNumString(int_str, start_x, start_y, width, height, spacing):
 def renderInt(int_number, start_x, start_y, width, height, spacing):
 	return renderNumString(f"{int_number}")
 
-
+#  -----------------------------------------------------------------
+# todo: so many params, can we make this cleaner?
+def elevationToY(elevation, start_y, basement_inches, minimum_elevation, slice_inches_to_svg_inches, vertical_exaggeration):
+	calc_y = start_y - basement_inches
+	current_elevation_in_svg_scale = ((elevation - minimum_elevation)* 12) * slice_inches_to_svg_inches * vertical_exaggeration
+	calc_y -= current_elevation_in_svg_scale
+	return calc_y
+	
 #  -----------------------------------------------------------------
 def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 	slice_layer = InkscapeLayer(layer_name)
@@ -227,10 +242,12 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 
 	log.svg(f"slice_inches_to_svg_inches: {slice_inches_to_svg_inches}")
 
+	log.todo("make start_y configurable")
 	start_y = 12
 
 	cur_x = 0
-	x_step_inches = config.slice_svg_length_inches / len(slice.elevations)
+	x_step_inches = config.slice_svg_length_inches / (len(slice.elevations)-1)
+	x_step_half = x_step_inches * 0.5
 
 	# remember that y coordinates go UP from start, so I guess that works since we're dealing with elevations?
 	slice_path = InkscapePath(cur_x, start_y)
@@ -240,24 +257,105 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 	basement_inches = 1
 	vertical_exaggeration = 1.0
 
-	# oh yeah, y coordinates are reversed cuz screen space
-	for cur_elevation in slice.elevations:
-		log.svg(f"cur_elev: {cur_elevation}")
-		cur_y = start_y - basement_inches
-		current_elevation_in_svg_scale = ((cur_elevation - minimum_elevation)* 12) * slice_inches_to_svg_inches * vertical_exaggeration
-		log.svg(f"current_elevation_in_svg_scale: {current_elevation_in_svg_scale}")
-		cur_y -= current_elevation_in_svg_scale
-		log.svg(f"cur_y: {cur_y}")
-		slice_path.draw(cur_x, cur_y)
+	smoothed = True
+	# cross_path = InkscapePath(0,0)
+	cross_width = 0 # 0.25
+
+	if cross_width > 0:
+		c1_path = InkscapePath(0,0)
+		c1_path.setColor("ff0000")
+		c2_path = InkscapePath(0,0)
+		c2_path.setColor("00ff00")
+		points_path = InkscapePath(0,0)
+		points_path.setColor("0000ff")
+
+	# compute slopes (convert to svg inches)
+	# note that there are one fewer slopes than there are elevations(points)
+	# (cuz slopes are measured between points)
+	slopes = []
+	for cur_index in range(0,len(slice.elevations) - 1):
+		slopes.append((slice.elevations[cur_index + 1] - slice.elevations[cur_index]) * 12 * slice_inches_to_svg_inches)
+
+	log.svg(f"slopes:{slopes}")
+
+	# move up "left" side to first elevation
+	cur_elevation = slice.elevations[0]
+
+	cur_y = elevationToY(cur_elevation,start_y,basement_inches,minimum_elevation
+		      ,slice_inches_to_svg_inches, vertical_exaggeration)
+
+	# draw line up to first (0 index) point...
+	slice_path.draw(cur_x, cur_y)
+
+	log.svg(f"index:{0} curxy:{cur_x},{cur_y} elev:{cur_elevation}")
+
+	# control points
+	c1x = 0
+	c1y = 0
+	c2x = 0
+	c2y = 0
+
+	# note: looping from 1 because index 0 is leftmost point, and already drawn (above)
+	for cur_index in range(1, len(slice.elevations)):
+		last_y = cur_y
+		last_x = cur_x
 
 		cur_x += x_step_inches
+		cur_elevation = slice.elevations[cur_index]
+		cur_y = elevationToY(cur_elevation,start_y,basement_inches,minimum_elevation
+					,slice_inches_to_svg_inches, vertical_exaggeration)
+
+		if not smoothed:
+			log.svg(f"index:{cur_index} curxy:{cur_x},{cur_y} elev:{cur_elevation}")
+			slice_path.draw(cur_x,cur_y)
+		else:
+			# compute two control points of current line
+			c1x = last_x + x_step_half
+			if cur_index == 1:
+				# for first point, control point 1 is just straight out from zero point
+				# c1y = last_y	# todo: this looks bad, do something different
+				c1y = cur_y + slopes[0] * 0.5
+			else:
+				# 1st control point is along previous slope, projected into current segment
+				prev_slope = slopes[cur_index-1]
+				c1y = last_y - prev_slope * 0.5
+
+			c2x = last_x + x_step_half	# both control points always sit at same x (for now)
+			# control point 2 y coordinate is on a line from next slope, projected back into current segment
+			if cur_index < (len(slice.elevations) - 1) :
+				next_slope = slopes[cur_index]
+				c2y = cur_y + next_slope * 0.5
+			else:
+				# if on last point, don't have a next slope (remember how there are one fewer slopes than
+				# points?), so just use last slope I guess
+				c2y = cur_y + slopes[cur_index - 1] * 0.5
+
+			slice_path.Cdraw(c1x, c1y, c2x, c2y, cur_x, cur_y)
+
+			log.svg(f"index:{cur_index} curxy:{cur_x},{cur_y} elev:{cur_elevation}")
+			log.svg(f"c1:{c1x},{c1y} c2:{c2x},{c2y}")
+
+			if cross_width > 0:
+				renderCross(c1x, c1y, cross_width,cross_width, c1_path)
+				renderCross(c2x, c2y, cross_width,cross_width, c2_path)
+				renderCross(cur_x,cur_y, cross_width,cross_width, points_path)
+
 
 	# at end, move back DOWN to min_y
-	cur_x -= x_step_inches	# remove last x step
-	slice_path.draw(cur_x, start_y)
+	# restart Line draw mode
+	slice_path.Ldraw(cur_x, start_y)
+	slice_path.draw(0, start_y)
 	slice_path.close()
 
 	slice_layer.add_node(slice_path)
+
+	if cross_width > 0:
+		c1_path.close()
+		slice_layer.add_node(c1_path)
+		c2_path.close()
+		slice_layer.add_node(c2_path)
+		points_path.close()
+		slice_layer.add_node(points_path)
 
 	# add arrow pointing left
 	arrow_path = renderLeftArrow(1, start_y - 0.5, 0.5, 0.25, 0.25)

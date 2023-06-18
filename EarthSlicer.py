@@ -26,7 +26,8 @@ from TopoSlicer import generateTopoSlices
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-#	* svg: smooth nodes
+#	* config: range checks!
+#	* svg: smooth nodes - https://www.w3.org/TR/SVG/paths.html#PathDataQuadraticBezierCommands
 #	* config: silence option
 # 	* config:input: validate inputs
 #	* config: set async? probably not
