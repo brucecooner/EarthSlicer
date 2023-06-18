@@ -37,6 +37,7 @@ class SVGConfig(ClassFromDict):
 		return {
 			"slice_svg_length_inches" : { "required":True, "type": float },
 			"vertical_scale" : { "required":True, "type": float },
+			"smoothed" : { "required":True, "type": bool },
 			"svg_base_filename" : { "required":True, "type": str }
 		}
 
@@ -46,6 +47,7 @@ class SVGConfig(ClassFromDict):
 		default_config = {
 			"slice_svg_length_inches" : 10.0,
 			"vertical_scale" : 1.0,
+			"smoothed" : True,
 			"svg_base_filename" : "earthslicer_default"
 		}
 		# just validate this every time with exception

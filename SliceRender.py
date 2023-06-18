@@ -181,7 +181,7 @@ def render9(start_x, start_y, width, height):
 	return path
 
 # ------------------------------------------------------------------
-def renderNumString(int_str, start_x, start_y, width, height, spacing):
+def renderNumString(int_str, start_x, start_y, width, height, spacing, color="000000"):
 	paths = []
 
 	num_render_funcs = [
@@ -195,7 +195,9 @@ def renderNumString(int_str, start_x, start_y, width, height, spacing):
 
 	for cur_char in int_str:
 		cur_render_func = num_render_funcs[ord(cur_char) - ord("0")]
-		paths.append(cur_render_func(cur_x, start_y, width, height))
+		path = cur_render_func(cur_x, start_y, width, height)
+		path.setColor(color)
+		paths.append(path)
 		cur_x += width + spacing
 
 	return paths
@@ -214,8 +216,6 @@ def elevationToY(elevation, start_y, basement_inches, minimum_elevation, slice_i
 	
 #  -----------------------------------------------------------------
 def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
-	slice_layer = InkscapeLayer(layer_name)
-
 	slice_length_degrees = slice.sliceLengthDegrees()
 
 	log.svg(f"minimum_elevation: {minimum_elevation}")
@@ -257,10 +257,8 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 	basement_inches = 1
 	vertical_exaggeration = 1.0
 
-	smoothed = True
-	# cross_path = InkscapePath(0,0)
+	# set to >0 to turn on crosses on topo and control points
 	cross_width = 0 # 0.25
-
 	if cross_width > 0:
 		c1_path = InkscapePath(0,0)
 		c1_path.setColor("ff0000")
@@ -269,7 +267,7 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 		points_path = InkscapePath(0,0)
 		points_path.setColor("0000ff")
 
-	# compute slopes (convert to svg inches)
+	# compute slopes (also convert to svg inches)
 	# note that there are one fewer slopes than there are elevations(points)
 	# (cuz slopes are measured between points)
 	slopes = []
@@ -305,7 +303,7 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 		cur_y = elevationToY(cur_elevation,start_y,basement_inches,minimum_elevation
 					,slice_inches_to_svg_inches, vertical_exaggeration)
 
-		if not smoothed:
+		if not config.smoothed:
 			log.svg(f"index:{cur_index} curxy:{cur_x},{cur_y} elev:{cur_elevation}")
 			slice_path.draw(cur_x,cur_y)
 		else:
@@ -342,24 +340,22 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 
 
 	# at end, move back DOWN to min_y
-	# restart Line draw mode
+	# (and set path back to Line draw mode)
 	slice_path.Ldraw(cur_x, start_y)
 	slice_path.draw(0, start_y)
-	slice_path.close()
-
-	slice_layer.add_node(slice_path)
+	# note that slice_path doesn't get closed, so the laser cutter will start
+	# its cut there instead of a random point
+	# slice_layer.add_node(slice_path)
 
 	if cross_width > 0:
 		c1_path.close()
-		slice_layer.add_node(c1_path)
 		c2_path.close()
-		slice_layer.add_node(c2_path)
 		points_path.close()
-		slice_layer.add_node(points_path)
+
 
 	# add arrow pointing left
 	arrow_path = renderLeftArrow(1, start_y - 0.5, 0.5, 0.25, 0.25)
-	slice_layer.add_node(arrow_path)
+	arrow_path.setColor("00aa00")
 
 	tstart_x = 1.25
 	tstart_y = start_y - 0.5
@@ -367,13 +363,22 @@ def sliceToLayer(slice, layer_name, config:SVGConfig, minimum_elevation):
 	theight = 0.35
 	spacing = 0.1
 
-	# todo: add direction hint next to arrow
+	# todo: size text somewhat?
+	num_paths = renderNumString(slice.name, tstart_x, tstart_y, twidth, theight, spacing, "00aa00")
 
-	paths = renderNumString(slice.name, tstart_x, tstart_y, twidth, theight, spacing)
-	for cur_path in paths:
-		slice_layer.add_node(cur_path)
 
-	return slice_layer
+	# all paths in same (non layer) group
+	slice_layer_path_group = InkscapeGroup(f"p_{layer_name}")
+	slice_layer_path_group.addNode(slice_path)
+	slice_layer_path_group.addNode(arrow_path)
+	for cur_path in num_paths:
+		slice_layer_path_group.addNode(cur_path)
+
+	# then the path group goes into a layer group
+	slice_layer_group = InkscapeGroup(f"g_{layer_name}", True)
+	slice_layer_group.addNode(slice_layer_path_group)
+
+	return slice_layer_group
 
 #  -----------------------------------------------------------------
 def slicesToSVG(slices:list[Slice], config:SVGConfig):

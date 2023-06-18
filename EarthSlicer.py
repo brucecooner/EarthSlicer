@@ -26,10 +26,8 @@ from TopoSlicer import generateTopoSlices
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-#	* config: range checks!
-#	* svg: smooth nodes - https://www.w3.org/TR/SVG/paths.html#PathDataQuadraticBezierCommands
 #	* config: silence option
-# 	* config:input: validate inputs
+# 	* config:input: validate inputs / range checks
 #	* config: set async? probably not
 #	* config: configurable slice async chunk size?
 #	* config: specify height map filename?
@@ -39,8 +37,11 @@ from TopoSlicer import generateTopoSlices
 #	* leading zeros on slice names
 #	* far future: flatten areas
 #	* progress feedback when getting lots of elevations
+#	* svg: move layers around to they don't overlap?
+#	* laers in different colors?
 
 # DONE:
+#	* svg: smooth nodes - https://www.w3.org/TR/SVG/paths.html#PathDataQuadraticBezierCommands
 #	* config: get rid of all the magic strings on config dict
 #	* config: break slice job into slice config / svg config
 #	* move support stuff into utils/ folder

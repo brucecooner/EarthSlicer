@@ -19,8 +19,33 @@ def snakeCase(s):
 		s.replace('-', ' '))).split()).lower()
 
 #  -----------------------------------------------------------------
+class InkscapeGroup:
+	def __init__(self, id, group_mode = False):
+		self.id = id
+		self.nodes = []
+		self.group_mode = group_mode
+
+	def addNode(self, node):
+		self.nodes.append(node)
+
+	#  -----------------------------
+	def write(self, file_obj):
+		file_obj.write(f"<g\n")
+
+		if self.group_mode:
+			file_obj.write(f'inkscape:label="{self.id}"\n')
+			file_obj.write(f'inkscape:groupmode="layer"\n')
+
+		file_obj.write(f'id="{snakeCase(self.id)}">\n')		# note: tag closed here
+		# write nodes
+		for cur_node in self.nodes:
+			cur_node.write(file_obj)
+
+		file_obj.write('</g>\n')
+
+#  -----------------------------------------------------------------
 # doesn't speak horizontal or vertical line (yet)
-# TODO: style options
+# TODO: more style options
 class InkscapePath:
 	# must supply starting coordinates
 	def __init__(self, start_x, start_y) -> None:
@@ -79,9 +104,10 @@ class InkscapeLayer:
 
 	#  -----------------------------
 	def write(self, file_obj):
+		# note that everything in path is in a group
 		file_obj.write(f'<g\n\
-inkscape:label="{self.name}"\n\
-inkscape:groupmode="layer"\n\
+# inkscape:label="{self.name}"\n\
+# inkscape:groupmode="layer"\n\
 id="{snakeCase(self.name)}">\n')
 
 		# write nodes
