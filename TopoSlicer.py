@@ -76,7 +76,7 @@ def generateTopoSlices(config:SliceJobConfig):
 											config.south_edge, current_long,
 											config.number_of_elevations,
 											config.slice_direction,
-											f"{slice_num}")
+											slice_num)
 
 			slices.append(current_slice)
 			slice_num += 1

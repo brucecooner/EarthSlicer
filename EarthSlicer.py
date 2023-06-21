@@ -26,21 +26,23 @@ from TopoSlicer import generateTopoSlices
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
+#	* formalize some svg generation tests (rows x columns and stuff)
 #	* config: silence option
 # 	* config:input: validate inputs / range checks
 #	* config: set async? probably not
 #	* config: configurable slice async chunk size?
 #	* config: specify height map filename?
 #	* optionally view height map stats
-#	* config: svg layers/file
-#	* svg: id numbers / directions / coordinates on layers
 #	* leading zeros on slice names
 #	* far future: flatten areas
 #	* progress feedback when getting lots of elevations
-#	* svg: move layers around to they don't overlap?
-#	* laers in different colors?
+#	* allow working with files in non-script folders (output should be in same dir as job file)
+#	* mark between filename and suffix (numbers get multiplied by 10!)
 
 # DONE:
+#	* config: svg layers/file (handled as usable area of svg)
+#	* svg: id numbers / directions / coordinates on layers
+#	* svg: move layers around to they don't overlap?
 #	* svg: smooth nodes - https://www.w3.org/TR/SVG/paths.html#PathDataQuadraticBezierCommands
 #	* config: get rid of all the magic strings on config dict
 #	* config: break slice job into slice config / svg config
@@ -112,7 +114,7 @@ def getElevations(slices:list[Slice], height_map:HeightMap):
 			return height_map.get(lat_long_array[0], lat_long_array[1], USGS_EPQS.getHeight)
 
 	for cur_slice in slices:
-		log.slicer(f'slice: {cur_slice.name}')
+		log.slicer(f'slice: {cur_slice.slice_index}')
 		cur_slice.getElevations(getHeightFromMap)
 
 #  ----------------------------------------------------------------------------
@@ -124,7 +126,7 @@ async def getElevationsAsync(slices:list[Slice], height_map:HeightMap):
 			return await height_map.getAsync(lat_long_array[0], lat_long_array[1], lambda lat_long_arr : USGS_EPQS.getHeightAsync(lat_long_arr, session))
 
 		for cur_slice in slices:
-			log.slicer(f'slice: {cur_slice.name}')
+			log.slicer(f'slice: {cur_slice.slice_index}')
 			await cur_slice.getElevationsAsync(getHeightFromMapAsync)
 
 # --------------------------------------------------------------------------

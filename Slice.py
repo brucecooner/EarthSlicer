@@ -42,21 +42,21 @@ class Slice:
 						end_long = None,
 						number_of_elevations = None,
 						direction = None,
-						slice_name = ""):
+						slice_index = 0):
 		self.start_lat = start_lat
 		self.start_long = start_long
 		self.end_lat = end_lat
 		self.end_long = end_long
 		self.number_of_elevations = number_of_elevations
 		self.slice_direction = direction
-		self.name = slice_name
+		self.slice_index = slice_index
 
 		# generated data
 		self.elevations = None
 		self.minimum_elevation = None
 		self.maximum_elevation = None
 
-		log.slice(f"constructed slice: {self.name}")
+		log.slice(f"constructed slice: {self.slice_index}")
 
 	# ------------------------------
 	@staticmethod
@@ -90,7 +90,7 @@ class Slice:
 
 	# ------------------------------
 	def generatePoints(self):
-		gtimer.startTimer(f"{self.name}_genpoints")
+		gtimer.startTimer(f"{self.slice_index}_genpoints")
 		points = []
 		lat_diff = self.end_lat - self.start_lat
 		long_diff = self.end_long - self.start_long
@@ -106,7 +106,7 @@ class Slice:
 			cur_lat += lat_step
 			cur_long += long_step
 
-		gtimer.markTimer(f"{self.name}_genpoints", "generate slice points")
+		gtimer.markTimer(f"{self.slice_index}_genpoints", "generate slice points")
 
 		log.slice(f"generated {len(points)} points")
 		log.slice(f"{points}")
@@ -116,7 +116,7 @@ class Slice:
 	# serial form
 	# elevation_func will be sent (lat,long):list
 	def getElevations(self, elevation_func):
-		gtimer.startTimer(f"{self.name}_gen_elevations_serial")
+		gtimer.startTimer(f"{self.slice_index}_gen_elevations_serial")
 
 		points = self.generatePoints()
 		self.elevations = []
@@ -128,12 +128,12 @@ class Slice:
 		self.minimum_elevation = min(self.elevations)
 		self.maximum_elevation = max(self.elevations)
 
-		gtimer.markTimer(f"{self.name}_gen_elevations_serial", "sliceGetElevsSerial")
+		gtimer.markTimer(f"{self.slice_index}_gen_elevations_serial", "sliceGetElevsSerial")
 
 	# ------------------------------
 	# async form
 	async def getElevationsAsync(self, elevation_func):
-		gtimer.startTimer(f"{self.name}_getElevAsync")
+		gtimer.startTimer(f"{self.slice_index}_getElevAsync")
 		points = self.generatePoints()
 		self.elevations = []
 
@@ -169,8 +169,7 @@ class Slice:
 		self.minimum_elevation = min(self.elevations)
 		self.maximum_elevation = max(self.elevations)
 
-		gtimer.markTimer(f"{self.name}_getElevAsync", "slice get elevations async")
-
+		gtimer.markTimer(f"{self.slice_index}_getElevAsync", "slice get elevations async")
 
 	# ------------------------------------------
 	def sliceLengthDegrees(self):

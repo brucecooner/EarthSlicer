@@ -24,13 +24,20 @@ class InkscapeGroup:
 		self.id = id
 		self.nodes = []
 		self.group_mode = group_mode
+		self.transform = None
 
 	def addNode(self, node):
 		self.nodes.append(node)
 
+	def setTransform(self, x,y):
+		self.transform =  f'transform="translate({inches_to_pixels(x)},{inches_to_pixels(y)})"'
+
 	#  -----------------------------
 	def write(self, file_obj):
 		file_obj.write(f"<g\n")
+
+		if self.transform:
+			file_obj.write(self.transform + "\n")
 
 		if self.group_mode:
 			file_obj.write(f'inkscape:label="{self.id}"\n')
@@ -93,28 +100,29 @@ class InkscapePath:
 		file_obj.write(node_text)
 
 #  -----------------------------------------------------------------
-class InkscapeLayer:
-	def __init__(self, layer_name) -> None:
-		self.name = layer_name
-		self.nodes = []
+# a "layer" in inskscape is just implemented as a group, so use InkscapeGroup() instead
+# class InkscapeLayer:
+# 	def __init__(self, layer_name) -> None:
+# 		self.name = layer_name
+# 		self.nodes = []
 
-	#  -----------------------------
-	def add_node(self, new_node):
-		self.nodes.append(new_node)
+# 	#  -----------------------------
+# 	def add_node(self, new_node):
+# 		self.nodes.append(new_node)
 
-	#  -----------------------------
-	def write(self, file_obj):
-		# note that everything in path is in a group
-		file_obj.write(f'<g\n\
-# inkscape:label="{self.name}"\n\
-# inkscape:groupmode="layer"\n\
-id="{snakeCase(self.name)}">\n')
+# 	#  -----------------------------
+# 	def write(self, file_obj):
+# 		# note that everything in path is in a group
+# 		file_obj.write(f'<g\n\
+# # inkscape:label="{self.name}"\n\
+# # inkscape:groupmode="layer"\n\
+# id="{snakeCase(self.name)}">\n')
 
-		# write nodes
-		for cur_node in self.nodes:
-			cur_node.write(file_obj)
+# 		# write nodes
+# 		for cur_node in self.nodes:
+# 			cur_node.write(file_obj)
 
-		file_obj.write('</g>\n')
+# 		file_obj.write('</g>\n')
 
 #  -----------------------------------------------------------------
 class InkscapeSVG:
