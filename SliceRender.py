@@ -1,7 +1,9 @@
+import os
 from math import ceil
 
 from InkscapeSVG import *
 from support.LogChannels import log
+from unitsSupport import *
 
 from SVGConfig import SVGConfig
 from Slice import SliceDirection, Slice
@@ -20,8 +22,9 @@ from Slice import SliceDirection, Slice
 #	* sort out vertical coordinate chaos (sorta done I guess)
 
 log.addChannel("svg", "svg")
-# log.setChannel("svg", False)
+log.setChannel("svg", False)
 log.addChannel("svggrid", "svgg")
+log.setChannel("svggrid", False)
 
 #  -----------------------------------------------------------------
 # puts start x,y at lower left corner
@@ -83,9 +86,10 @@ def renderN(start_x, start_y, width, height, color = "000000"):
 
 #  -----------------------------------------------------------------
 # start_x,start_y = coordinate of lower left corner
-def renderW(start_x, start_y, width, height):
+def renderW(start_x, start_y, width, height, color = "000000"):
 	quarter_width = width * 0.25
 	char_path = InkscapePath(start_x, start_y - height)
+	char_path.setColor(color)
 	char_path.draw(start_x + (quarter_width * 1), start_y)
 	char_path.draw(start_x + (quarter_width * 2), start_y - (height/2))
 	char_path.draw(start_x + (quarter_width * 3), start_y)
@@ -209,42 +213,28 @@ def renderInt(int_number, start_x, start_y, width, height, spacing):
 
 #  -----------------------------------------------------------------
 # todo: so many params, can we make this cleaner?
-def elevationToY(elevation, start_y, basement_inches, minimum_elevation, slice_inches_to_svg_inches, vertical_exaggeration):
-	calc_y = start_y - basement_inches
-	current_elevation_in_svg_scale = ((elevation - minimum_elevation)* 12) * slice_inches_to_svg_inches * vertical_exaggeration
+def elevationToY(elevation, start_y, base_inches, minimum_elevation, slice_inches_to_svg_inches, vertical_scale):
+	calc_y = start_y - base_inches
+	current_elevation_in_svg_scale = ((elevation - minimum_elevation) * vertical_scale * 12) * slice_inches_to_svg_inches
 	calc_y -= current_elevation_in_svg_scale
 	return calc_y
 	
 #  -----------------------------------------------------------------
-# returns 
+# renders slice elevations to an inkscape layer
+# return (layer, minimum_y_coordinate_of_layer)
 def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
-	slice_length_degrees = slice.sliceLengthDegrees()
+	text_color_string = "00aa00"
+	arrow_color_string = "00aa00"
 
-	# log.svg(f"slice_length_degrees: {slice_length_degrees}")
-
-	min_y = None
-
-	# elevations from USGS are in feet, so convert to feet somehow
-	# one fourth of distance around the earth (approximate) divided by degrees in one fourth of a circle
-	# kilometers_per_degree = 10,000 / 90
-	# feet_per_kilometer = 3280.4
-	# yields...
-	feet_per_degree = 364488.0
-	feet_per_mile = 5280
-	# longitude gets squished as you approach the poles, but we'll consider the sliced squares to be truly square
-
-	slice_feet = feet_per_degree * slice_length_degrees
+	slice_feet = slice.sliceLengthFeet()
 	slice_inches = slice_feet * 12.0 # probably a big number
 
-	# log.svg(f"slice length inches: {slice_inches}")
-	# log.svg(f"slice length feet: {slice_feet}")
-	# log.svg(f"slice length miles: {slice_feet / feet_per_mile}")
-
-	# okay, now go from the slice's size on earth to the render width
+	# okay, now go from the slice's size on earth to svg space
 	slice_inches_to_svg_inches = config.slice_width_inches / slice_inches # should be something < 1
 
 	# log.svg(f"slice_inches_to_svg_inches: {slice_inches_to_svg_inches}")
 
+	min_y = None
 	cur_x = start_x
 
 	x_step_inches = config.slice_width_inches / (len(slice.elevations)-1)
@@ -253,14 +243,8 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	# remember that y coordinates go UP from start, so I guess that works since we're dealing with elevations?
 	slice_path = InkscapePath(cur_x, start_y)
 
-	# very placeholder...
-	# but yeah, need to scale DOWN the elevations to some local scale
-	log.todo("use config.base_inches instead of basement_inches")
-	basement_inches = 1
-	vertical_exaggeration = 1.0
-
 	# set to >0 to turn on crosses on topo and control points
-	cross_width = 0 # 0.25
+	cross_width = 0.0 # grrr, broken 0.25
 	if cross_width > 0:
 		c1_path = InkscapePath(0,0)
 		c1_path.setColor("ff0000")
@@ -276,18 +260,14 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	for cur_index in range(0,len(slice.elevations) - 1):
 		slopes.append((slice.elevations[cur_index + 1] - slice.elevations[cur_index]) * 12 * slice_inches_to_svg_inches)
 
-	# log.svg(f"slopes:{slopes}")
-
 	# move up "left" side to first elevation
 	cur_elevation = slice.elevations[0]
 
-	cur_y = elevationToY(cur_elevation,start_y,basement_inches,minimum_elevation
-		      ,slice_inches_to_svg_inches, vertical_exaggeration)
+	cur_y = elevationToY(cur_elevation, start_y, config.base_inches, minimum_elevation
+		      ,slice_inches_to_svg_inches, config.vertical_scale)
 
 	# draw line up to first (0 index) point...
 	slice_path.draw(cur_x, cur_y)
-
-	# log.svg(f"index:{0} curxy:{cur_x},{cur_y} elev:{cur_elevation}")
 
 	# control points
 	c1x = 0
@@ -302,8 +282,8 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 
 		cur_x += x_step_inches
 		cur_elevation = slice.elevations[cur_index]
-		cur_y = elevationToY(cur_elevation,start_y,basement_inches,minimum_elevation
-					,slice_inches_to_svg_inches, vertical_exaggeration)
+		cur_y = elevationToY(cur_elevation,start_y, config.base_inches, minimum_elevation
+					,slice_inches_to_svg_inches, config.vertical_scale)
 		
 		# track minimum y coordinate
 		min_y = cur_y if not min_y else min(min_y, cur_y)
@@ -335,9 +315,6 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 
 			slice_path.Cdraw(c1x, c1y, c2x, c2y, cur_x, cur_y)
 
-			# log.svg(f"index:{cur_index} curxy:{cur_x},{cur_y} elev:{cur_elevation}")
-			# log.svg(f"c1:{c1x},{c1y} c2:{c2x},{c2y}")
-
 			if cross_width > 0:
 				renderCross(c1x, c1y, cross_width,cross_width, c1_path)
 				renderCross(c2x, c2y, cross_width,cross_width, c2_path)
@@ -349,8 +326,7 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	slice_path.Ldraw(cur_x, start_y)
 	slice_path.draw(start_x, start_y)
 	# note that slice_path doesn't get closed, so the laser cutter will start
-	# its cut there instead of a random point
-	# slice_layer.add_node(slice_path)
+	# its cut there instead of a random point along the slope (probably)
 
 	if cross_width > 0:
 		c1_path.close()
@@ -358,30 +334,36 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 		points_path.close()
 
 	# add arrow pointing left
-	arrow_height = (basement_inches) * 0.25
+	arrow_height = (config.base_inches) * 0.25
 	arrow_length = arrow_height * 4
-	arrow_x = start_x + 0.5
-	arrow_y = start_y - basement_inches * 0.5
+	arrow_x = start_x + 0.5 # this assumes we've got 0.5 inches to work with
+	arrow_y = start_y - config.base_inches * 0.5
 	arrow_path = renderLeftArrow(arrow_x, arrow_y, arrow_length, 0.25, 0.25)
-	arrow_path.setColor("00aa00")
+	arrow_path.setColor(arrow_color_string)
 
-	text_spacing = 0.1
-	text_height = arrow_height
+	text_height = config.base_inches * 0.5
+	text_width = text_height * 0.5
+	text_spacing = text_width * 0.5
 	text_start_x = arrow_x + arrow_length + text_spacing
-	text_start_y = start_y - (basement_inches * 0.25)
-	text_width = 0.25
-	text_height = 0.35
+	text_start_y = start_y - (config.base_inches * 0.25)
 
 	renderLetterFunc = renderN
 	if slice.slice_direction == SliceDirection.WestEast:
 		renderLetterFunc = renderW
 
-	dir_path = renderLetterFunc(text_start_x, text_start_y, text_width, text_height, "00aa00")
+	dir_path = renderLetterFunc(text_start_x, text_start_y, text_width, text_height, text_color_string)
 
 	text_start_x += (text_width + text_spacing) * 2
 
 	# note: text is green
-	num_paths = renderNumString(f"{slice.slice_index}", text_start_x, text_start_y, text_width, text_height, text_spacing, "00aa00")
+	slice_index_text = ""
+	# leading zeroes?
+	if slice.slice_index < 10:
+		slice_index_text += "00"
+	elif slice.slice_index < 100:
+		slice_index_text += "0"
+	slice_index_text += f"{slice.slice_index}"
+	num_paths = renderNumString(slice_index_text, text_start_x, text_start_y, text_width, text_height, text_spacing, text_color_string)
 
 	# all paths in same (non layer) group
 	slice_layer_path_group = InkscapeGroup(f"p_slice_{slice.slice_index}")
@@ -481,7 +463,6 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 
 		for cur_row_slice in cur_row_result[1]:
 			log.slicesToSVG(f"adding row slice to svg...")
-
 			log.slicesToSVG(f"total_y_transform:{total_y_transform}")
 
 			cur_row_slice.setTransform(0, total_y_transform)
@@ -491,81 +472,13 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 		if (total_y_transform >= config.layers_grid_max_y) or cur_row_index >= (len(row_results)-1):
 			# write current svg, start another
 			log.todo("no file suffix if only one file")
-			cur_filename = f"{config.svg_base_filename}{cur_file_suffix}"
-			log.slicesToSVG(f"writing file: {cur_filename}")
-			cur_svg.write(cur_filename)
+			log.todo("detect svg extension in svg config and add suffixes around it? Or just roll with it")
+			cur_filename = f"{config.svg_base_filename}-{cur_file_suffix}"
+			cur_path_and_filename = os.path.join(config.base_path, cur_filename)
+			log.slicesToSVG(f"writing file: {cur_path_and_filename}")
+			cur_svg.write(cur_path_and_filename)
 			cur_svg = InkscapeSVG()
 			cur_file_suffix += 1
 
 		cur_row_index += 1
-
-#  ------------------------------------------------------------------------------------------
-def slicesToSVGOLD(slices:list[Slice], config:SVGConfig):
-	svg = InkscapeSVG()
-
-	# have to know the minimum world elevation in the job as every slice has to be adjusted in screen space for it
-	min_elevation = min([cur_slice.minimum_elevation for cur_slice in slices])
-
-	cur_x = config.layers_grid_start_x
-	cur_y = config.layers_grid_start_y
-
-	layer_horz_spacing = 0.15
-	layer_vert_spacing = 0.15
-
-	cur_file_index = 0
-
-	min_y_on_current_row = None
-
-	cur_slice_index = 0
-
-	cur_file_layers = []
-
-	while cur_slice_index < len(slices):
-		# make a row...
-		while cur_x < config.layers_grid_max_x and cur_slice_index < len(slices):
-			log.svggrid(f"adding a slice at cur_x:{cur_x}")
-			# take a slice
-			cur_slice_result = sliceToLayer(slices[cur_slice_index], config, min_elevation, cur_x, cur_y)
-			min_y_on_current_row = cur_slice_result[1] if not min_y_on_current_row else min(min_y_on_current_row, cur_slice_result[1])
-
-			cur_file_layers.append(cur_slice_result[0])
-
-			# step to right
-			cur_x += config.slice_width_inches + layer_horz_spacing
-			cur_slice_index += 1
-			log.svggrid(f"stepped right, cur_x:{cur_x}")
-
-			# passed max x?
-			if cur_x >= config.layers_grid_max_x:
-				log.svggrid("cur_x > max x")
-				# did this row go under minimum y?
-				if min_y_on_current_row < config.layers_grid_min_y:
-					log.svggrid("went under min y, writing to file...")
-					# write current output to file
-					file_suffix = f"_{cur_file_index}"
-					# TODO: detect case where all layers fit in one file?
-					# if cur_slice_index < len(slices)-1:
-					# 	file_suffix = f"_cur_file_index"
-					svg.write(f"config.svg_base_filename_{file_suffix}")
-					cur_file_index += 1
-					svg = InkscapeSVG()
-
-		# reset for next row
-		log.svggrid("resetting for next row")
-		cur_x = config.layers_grid_start_x
-		cur_y = min_y_on_current_row - layer_vert_spacing
-		min_y_on_current_row = None
-
-
-
-
-	# for cur_slice in slices:
-	# 	log.svg(f"slice: cur_y={cur_y}")
-	# 	cur_slice_layer_result = sliceToLayer(cur_slice, slice_base_name + str(cur_slice_number), config, min_elevation, cur_x, cur_y)
-	# 	log.svg(f"result[1]:{cur_slice_layer_result[1]}")
-	# 	svg.addNode(cur_slice_layer_result[0])
-	# 	cur_slice_number += 1
-	# 	# subtract spacing because going up in svg space
-	# 	cur_y = cur_slice_layer_result[1] - layer_spacing
-	# svg.write(config.svg_base_filename)
 

@@ -1,6 +1,7 @@
 from enum import Enum
 import asyncio
 
+from unitsSupport import *
 from support.LogChannels import log
 from support.GTimer import gtimer
 
@@ -180,6 +181,20 @@ class Slice:
 			slice_length_degrees = abs(self.end_long - self.start_long)
 
 		return slice_length_degrees
+
+	# ------------------------------------------
+	def sliceLengthMiles(self):
+		if self.slice_direction == SliceDirection.NorthSouth:
+			miles = latitudeDegreesToMiles(self.sliceLengthDegrees())
+		else:
+			# since slices are taken north/south, the end_lat is the southern edge
+			miles = longitudeDegreesToMiles(self.sliceLengthDegrees(), self.end_lat)
+
+		return miles
+
+	# ------------------------------------------
+	def sliceLengthFeet(self):
+		return self.sliceLengthMiles() * feetPerMile()
 
 	# ------------------------------------------
 	def __getitem__(self, item):

@@ -21,40 +21,35 @@ def calcStep(start, end, number_of_points):
 	return step
 
 # ------------------------------------------
-def topoSlicerValidateConfig(test_config:dict, throw_on_fail:bool = True):
-	topoSlicerConfigProperties = {
-		"slice_direction",
-		"number_of_slices",
-		"number_of_elevations",
-		"north_edge",
-		"west_edge",
-		"south_edge",
-		"east_edge" }
+# def topoSlicerValidateConfig(test_config:dict, throw_on_fail:bool = True):
+# 	topoSlicerConfigProperties = {
+# 		"slice_direction",
+# 		"number_of_slices",
+# 		"number_of_elevations",
+# 		"north_edge",
+# 		"west_edge",
+# 		"south_edge",
+# 		"east_edge" }
 	
-	valid_config = True
-	result_message = ""
-	missing_keys = []
-	for cur_prop in topoSlicerConfigProperties:
-		if not cur_prop in test_config:
-			valid = False
-			missing_keys.append(cur_prop)
+# 	valid_config = True
+# 	result_message = ""
+# 	missing_keys = []
+# 	for cur_prop in topoSlicerConfigProperties:
+# 		if not cur_prop in test_config:
+# 			valid = False
+# 			missing_keys.append(cur_prop)
 
-	if len(missing_keys):
-		result_message = f'Invalid TopoSlices config, missing keys: ' + str(missing_keys)
-		if throw_on_fail:
-			raise Exception(result_message)
+# 	if len(missing_keys):
+# 		result_message = f'Invalid TopoSlices config, missing keys: ' + str(missing_keys)
+# 		if throw_on_fail:
+# 			raise Exception(result_message)
 
-	return {"result":valid_config, "message":result_message}
+# 	return {"result":valid_config, "message":result_message}
 
 # ------------------------------------------
-# generates slices from given config
+# takes in a SliceJobConfig, returns array of slices that result from it
 def generateTopoSlices(config:SliceJobConfig):
 	log.slicer("generating slices...")
-
-	# this should convert the slice dir from string=>enum
-	# topoSlicerValidateConfig(config)
-	# convert slice direction to Class enum (messy stuff here!)
-	# config["slice_direction"] = SliceDirection.toSliceDirection(config["slice_direction"])
 
 	slices = []
 	slice_num = 0
@@ -94,7 +89,7 @@ def generateTopoSlices(config:SliceJobConfig):
 											current_lat, config.east_edge,
 											config.number_of_elevations,
 											config.slice_direction,
-											f"{slice_num}")
+											slice_num)
 
 			gtimer.markTimer('generate single slice')
 

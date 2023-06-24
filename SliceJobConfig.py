@@ -2,7 +2,7 @@
 from support.ClassFromDict import ClassFromDict
 from support.ValidateDict import validateDict, checkValidator
 from support.LogChannels import log
-
+from unitsSupport import *
 from Slice import SliceDirection
 
 
@@ -15,6 +15,7 @@ log.setChannel("sjc", False)
 # ------------------------------------------------------------------------------------------------------
 class SliceJobConfig(ClassFromDict):
 	def __init__(self, slice_config: dict = None):
+		self.repr_keys = []
 		use_config = slice_config if slice_config else SliceJobConfig.getDefaultConfig()
 		# just throw an exception, if somebody needs it they can catch it
 		SliceJobConfig.validateConfig(use_config, True)
@@ -28,14 +29,27 @@ class SliceJobConfig(ClassFromDict):
 		#TODO: specially handle slice_direction here...
 		self.slice_direction = SliceDirection.toSliceDirection(self.slice_direction)
 
+		self.repr_keys = [cur_val_key for cur_val_key in SliceJobConfig.getConfigValidator()]
+		self.calcMetrics()
+
 	# ------------------------------------------------------------------------------------------------------
 	def __repr__(self):
 		srep = ""
 
-		# print all keys in validator
-		validator = SliceJobConfig.getConfigValidator()
-		for cur_rule_key  in validator.keys():
-			srep += f"   {cur_rule_key}: {getattr(self, cur_rule_key)}\n"
+		for cur_key in self.repr_keys:
+			srep += f"   {cur_key}: {getattr(self, cur_key)}\n"
+		# # print all keys in validator
+		# output_keys = (cur_val_key for cur_val_key in SliceJobConfig.getConfigValidator())
+		# # add metrics keys
+		# output_keys.concat(getMetricsKeys())
+
+		# validator = SliceJobConfig.getConfigValidator()
+		# for cur_rule_key  in validator.keys():
+		# 	srep += f"   {cur_rule_key}: {getattr(self, cur_rule_key)}\n"
+
+		# print metrics
+		# for cur_metric_key in metrics_keys:
+		# 	srep += f"   {cur_metric_key}: {getattr(self, cur_metric_key)}\n"
 
 		return srep
 
@@ -83,6 +97,26 @@ class SliceJobConfig(ClassFromDict):
 		validation_result = validateDict(slice_config, SliceJobConfig.getConfigValidator(), throw_on_fail = throw_on_fail, trace_enabled=False)
 
 		return validation_result
+
+	# --------------------------------------------------------------------------
+	def calcMetrics(self):
+		metrics = {}
+		metrics["east_west_degrees"] = abs(self.west_edge) - abs(self.east_edge) # uhhhhh, might not be correct, but usually both the same sign so *shrug*
+
+		# Just use south edge. Doing this stretches the slice e-w as you go north but, eh, hopefully good enough.
+		metrics["east_west_miles"] = longitudeDegreesToMiles(metrics["east_west_degrees"], self.south_edge)
+		metrics["east_west_feet"] = metrics["east_west_miles"] * feetPerMile()
+
+		metrics["north_south_degrees"] = self.north_edge - self.south_edge
+		metrics["north_south_miles"] = latitudeDegreesToMiles(metrics["north_south_degrees"])
+		metrics["north_south_feet"] = metrics["north_south_miles"] * feetPerMile()
+
+		self.addProperties(metrics)
+
+		for cur_met_key in metrics.keys():
+			self.repr_keys.append(cur_met_key)
+
+
 
 # -------------------------------------------------------------
 # end class SliceJobConfig

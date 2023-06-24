@@ -5,11 +5,13 @@ import os
 import asyncio
 from aiohttp import ClientSession
 import argparse
+import math
 
 # support
 from support.LogChannels import log
 from support.GTimer import gtimer
 from support.ClassFromDict import ClassFromDict
+from unitsSupport import *
 
 from HeightMap import HeightMap
 from USGS_EPQS import USGS_EPQS
@@ -26,20 +28,25 @@ from TopoSlicer import generateTopoSlices
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
+#	* slice job config post validator
+#	* add input for a "scale calculator" to report scale between slice size and svg space
+#	* output info about svg files
 #	* formalize some svg generation tests (rows x columns and stuff)
 #	* config: silence option
-# 	* config:input: validate inputs / range checks
-#	* config: set async? probably not
+# 	* config:input: validate inputs / range checks - sorta doing this with validator
 #	* config: configurable slice async chunk size?
 #	* config: specify height map filename?
-#	* optionally view height map stats
-#	* leading zeros on slice names
+#	* optionally view height map stats?
 #	* far future: flatten areas
 #	* progress feedback when getting lots of elevations
-#	* allow working with files in non-script folders (output should be in same dir as job file)
-#	* mark between filename and suffix (numbers get multiplied by 10!)
 
 # DONE:
+#	* mark between filename and suffix (numbers get multiplied by 10!)
+#	* output slice metrics 
+#	* svg: vertical scale
+#	* leading zeros on slice numbers in svg
+#	* svg: use svgconfig.base_inches instead of hardwired value
+#	* allow working with files in non-script folders (output should be in same dir as job file)
 #	* config: svg layers/file (handled as usable area of svg)
 #	* svg: id numbers / directions / coordinates on layers
 #	* svg: move layers around to they don't overlap?
@@ -68,11 +75,10 @@ MinorVersion = 1
 # DEFAULTS
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-default_config = {
-	# app concerns
-	# "slice_job_filename" : "earth_slice_default_job.json",
+default_app_config = {
 	"async_http" : True,
 	"height_map_filename" : "height_map.json",
+	"report_timings" : True
 }
 
 # Mt. Ord:
@@ -82,11 +88,6 @@ default_config = {
 # tight box across Mt. Ord:
 # west : -111.411012
 # east :  -111.405557
-
-#  -----------------------------------------------------------------
-# system config
-report_timings = True
-
 
 #  -----------------------------------------------------------------
 # TYPES
@@ -178,7 +179,7 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# get config defaults (some may get overridden later)
-	main_config = { k: v for (k,v) in default_config.items()}
+	main_config = { k: v for (k,v) in default_app_config.items()}
 
 	# --------------------------------------------------------------------------
 	# command line parsing
@@ -213,6 +214,8 @@ def main_func():
 
 	job_file_objects = load_job_file_result[1]
 
+	main_config["job_file_path"] = os.path.dirname(main_config["slice_job_filename"])
+
 	# --------------------------------------------------------------------------
 	# get slice job config
 	try:
@@ -231,12 +234,22 @@ def main_func():
 			main_svg_config = SVGConfig(job_file_objects[SliceJobFileKeys.SVG])
 		except Exception as exc:
 			quitWithError(f"{exc}")
-
-		log.echo(f"svg config:")
-		log.echo(f"{main_svg_config}")
 	else:
 		log.echo("no svg config specified")
 
+	# --------------------------------------------------------------------------
+	# calculate/verify svg output location
+	if main_svg_config:
+		svg_output_path = os.path.dirname(main_svg_config.svg_base_filename)	# extract path from svg output name
+		svg_output_full_path = os.path.join(main_config["job_file_path"], svg_output_path)
+
+		if os.path.exists(svg_output_full_path):
+			main_svg_config.addProperties( {"base_path": main_config["job_file_path"] } )
+
+			log.echo(f"svg config:")
+			log.echo(f"{main_svg_config}")
+		else:
+			quitWithError(f"specified svg output path does not exist: {main_svg_config.output_path}")
 
 	# --------------------------------------------------------------------------
 	# create height map
@@ -267,7 +280,8 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# generate slices
-	log.echo("generate slices")
+	log.echo()
+	log.echo("generating slices")
 	gtimer.startTimer("generate all slices")
 
 	main_slices = generateTopoSlices(main_slice_job)
@@ -275,6 +289,7 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# get elevations
+	log.echo()
 	log.echo("getting elevations")
 	gtimer.startTimer("get elevations")
 
@@ -288,10 +303,11 @@ def main_func():
 	# --------------------------------------------------------------------------
 	# generate svg's
 	if main_svg_config:
+		log.echo()
 		log.echo("generating svg files")
 		gtimer.startTimer("generate svg file(s)")
 
-		slicesToSVG(main_slices, main_svg_config)
+		slicesToSVG(main_slices, main_svg_config) # , main_config["job_file_path"])
 
 		gtimer.markTimer("generate svg file(s)")
 	else:
@@ -318,7 +334,7 @@ def main_func():
 	log.echo()
 	log.echo(main_height_map.Stats())
 
-	if report_timings:
+	if main_config["report_timings"]:
 		log.echo()
 		log.echo(gtimer.report())
 
