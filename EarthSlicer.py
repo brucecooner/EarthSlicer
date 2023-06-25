@@ -18,8 +18,9 @@ from USGS_EPQS import USGS_EPQS
 
 # slicing
 from SliceJobConfig import SliceJobConfig
+from SliceJob import SliceJob
 from SVGConfig import SVGConfig
-from Slice import Slice
+from Slice import Slice, SliceDirection
 from SliceRender import slicesToSVG
 from TopoSlicer import generateTopoSlices
 
@@ -28,19 +29,20 @@ from TopoSlicer import generateTopoSlices
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
+#	* hollowing out svgs
+#	* help if no slice job specified (include example config file)
 #	* slice job config post validator
-#	* add input for a "scale calculator" to report scale between slice size and svg space
-#	* output info about svg files
+#	* output info about svg files created
 #	* formalize some svg generation tests (rows x columns and stuff)
 #	* config: silence option
 # 	* config:input: validate inputs / range checks - sorta doing this with validator
-#	* config: configurable slice async chunk size?
 #	* config: specify height map filename?
 #	* optionally view height map stats?
 #	* far future: flatten areas
 #	* progress feedback when getting lots of elevations
 
 # DONE:
+#	* linear feet of material required
 #	* mark between filename and suffix (numbers get multiplied by 10!)
 #	* output slice metrics 
 #	* svg: vertical scale
@@ -67,8 +69,8 @@ from TopoSlicer import generateTopoSlices
 # VERSION
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-MajorVersion = 0
-MinorVersion = 1
+MajorVersion = 1
+MinorVersion = 0
 
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
@@ -76,29 +78,21 @@ MinorVersion = 1
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
 default_app_config = {
-	"async_http" : True,
+	# "async_http" : True,
 	"height_map_filename" : "height_map.json",
-	"report_timings" : True
+	"report_timings" : True,
+	"no_output" : False,
+	"material_width_inches" : None
 }
-
-# Mt. Ord:
-# north west: 33.9613461003105, -111.45394254239501
-# south east: 33.88319885879201, -111.35075475268964
-
-# tight box across Mt. Ord:
-# west : -111.411012
-# east :  -111.405557
 
 #  -----------------------------------------------------------------
 # TYPES
 #  -----------------------------------------------------------------
 
-
 #  -----------------------------------------------------------------
 # CONSTANTS
 #  -----------------------------------------------------------------
 SliceJobFileKeys = ClassFromDict({"SliceJob":"slices", "SVG":"svg"})
-CommandLineParams = ClassFromDict({"JobFilename": "job_file"})
 
 #  -----------------------------------------------------------------
 #	VARIABLES
@@ -108,27 +102,32 @@ CommandLineParams = ClassFromDict({"JobFilename": "job_file"})
 #	FUNCTIONS
 #  -----------------------------------------------------------------
 #  ----------------------------------------------------------------------------
-def getElevations(slices:list[Slice], height_map:HeightMap):
-	#  ----------------------------------------
-	# uses height map param, delegates misses to epqs (serial)
-	def getHeightFromMap(lat_long_array):
-			return height_map.get(lat_long_array[0], lat_long_array[1], USGS_EPQS.getHeight)
+# don't see this ever running quickly enough to use but, will leave it for now
+# def getElevations(slices:list[Slice], height_map:HeightMap):
+# 	#  ----------------------------------------
+# 	# uses height map param, delegates misses to epqs (serial)
+# 	def getHeightFromMap(lat_long_array):
+# 			return height_map.get(lat_long_array[0], lat_long_array[1], USGS_EPQS.getHeight)
 
-	for cur_slice in slices:
-		log.slicer(f'slice: {cur_slice.slice_index}')
-		cur_slice.getElevations(getHeightFromMap)
+# 	for cur_slice in slices:
+# 		log.slicer(f'slice: {cur_slice.slice_index}')
+# 		cur_slice.getElevations(getHeightFromMap)
 
 #  ----------------------------------------------------------------------------
-async def getElevationsAsync(slices:list[Slice], height_map:HeightMap):
+# async def getElevationsAsync(slices:list[Slice], height_map:HeightMap):
+async def getElevationsAsync(slice_job:SliceJob, height_map:HeightMap):
+	total_elevations_queried = 0
 	#  ----------------------------------------
 	# uses height map passed in to parent func, delegates misses to epqs (async)
 	async with ClientSession() as session:
 		async def getHeightFromMapAsync(lat_long_array):
 			return await height_map.getAsync(lat_long_array[0], lat_long_array[1], lambda lat_long_arr : USGS_EPQS.getHeightAsync(lat_long_arr, session))
 
-		for cur_slice in slices:
-			log.slicer(f'slice: {cur_slice.slice_index}')
-			await cur_slice.getElevationsAsync(getHeightFromMapAsync)
+		for cur_slice in slice_job.slices:
+			log.echo(f'getting elevations for slice: {cur_slice.slice_index}')
+			total_elevations_queried += await cur_slice.getElevationsAsync(getHeightFromMapAsync)
+
+	return total_elevations_queried
 
 # --------------------------------------------------------------------------
 # returns ( True/False, error message on failure|job file bits)
@@ -163,6 +162,13 @@ def quitWithError(error_msg):
 	log.echo("quitting")
 	quit(1)
 
+# -----------------------------------------------------------------------------
+# so you can standardize reporting on major work section entry
+def logSectionHeader(section_name:str):
+	dashes = "----------"
+	log.echo()
+	log.echo(f"{dashes} {section_name} {dashes}")
+
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 # MAIN (FUNC)
@@ -172,9 +178,6 @@ def main_func():
 	gtimer.startTimer("main")
 
 	log.addChannel("echo")
-	log.addChannel("error", "Error: ")
-	log.addChannel("debug", "debug: ")
-	log.setChannel("debug", False)
 	log.addChannel("todo", "TODO: ")
 
 	# --------------------------------------------------------------------------
@@ -184,12 +187,18 @@ def main_func():
 	# --------------------------------------------------------------------------
 	# command line parsing
 	parser = argparse.ArgumentParser()
-	parser.add_argument(CommandLineParams.JobFilename, help="json file specifying an earth slice job") #refine this later
+	parser.add_argument("job_file", help="json file specifying an earth slice job") #refine this later
+	parser.add_argument("--material_width_inches", help="enter width of material used for slices, will report\
+		     number of slices needed based on size of modeled area")
+	parser.add_argument("--no_output", help="load slice job and report its config, but take no action", action="store_true")
 
 	args = parser.parse_args()
 
 	if args.job_file:
 		main_config["slice_job_filename"] = args.job_file
+
+	main_config["no_output"] = args.no_output
+	main_config["material_width_inches"] = None if not args.material_width_inches else float(args.material_width_inches)
 
 	log.todo("check for silent mode, turn off log channels")
 
@@ -206,7 +215,7 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# load job file
-	log.echo()
+	logSectionHeader("loading job file")
 	load_job_file_result = loadJobFile(main_config["slice_job_filename"])
 	if not load_job_file_result[0]:
 		log.echo()
@@ -219,12 +228,12 @@ def main_func():
 	# --------------------------------------------------------------------------
 	# get slice job config
 	try:
-		main_slice_job = SliceJobConfig(job_file_objects[SliceJobFileKeys.SliceJob])
+		main_slice_job_config = SliceJobConfig(job_file_objects[SliceJobFileKeys.SliceJob])
 	except Exception as exc:
 		quitWithError(f"{exc}")
 
 	log.echo(f"slice job:")
-	log.echo(f"{main_slice_job}")
+	log.echo(f"{main_slice_job_config}")
 
 	# --------------------------------------------------------------------------
 	# get svg config (if present)
@@ -232,6 +241,8 @@ def main_func():
 	if SliceJobFileKeys.SVG in job_file_objects:
 		try:
 			main_svg_config = SVGConfig(job_file_objects[SliceJobFileKeys.SVG])
+			main_svg_config.addProperties({"layers_grid_x_spacing":0.5, "layers_grid_y_spacing":0.25})
+
 		except Exception as exc:
 			quitWithError(f"{exc}")
 	else:
@@ -249,12 +260,48 @@ def main_func():
 			log.echo(f"svg config:")
 			log.echo(f"{main_svg_config}")
 		else:
-			quitWithError(f"specified svg output path does not exist: {main_svg_config.output_path}")
+			quitWithError(f"specified svg output path does not exist: {svg_output_full_path}{os.sep}")
+
+	# ---------------------------------------------------------------------------
+	# create main slice job
+	main_slice_job = SliceJob(main_slice_job_config)
+
+	# ---------------------------------------------------------------------------
+	# scale info
+	scale_feet_per_inch = 0
+	# the width of the svg's produced (which are in sliced direction) determines the map scale
+	logSectionHeader("scale info")
+	if main_svg_config:
+		scale_feet_per_inch = main_slice_job.sliceLengthFeet() / main_svg_config.slice_width_inches
+		log.echo(f"svg config specified a width of {main_svg_config.slice_width_inches} inches")
+		log.echo(f"giving a scale of {scale_feet_per_inch} feet per inch")
+	else:
+		log.echo(f"no svg config given, unable to determine map scale")
+
+	# ---------------------------------------------------------------------------
+	# material width to number of slices calculator
+	if main_config["material_width_inches"]:
+		logSectionHeader("material width => number of slices")
+		if not main_svg_config:
+			quitWithError("material_width_inches option requires an svg config, but no svg config was found in job file")
+
+		log.echo(f"specified material width (inches): {main_config['material_width_inches']}")
+		log.echo(f"mapped width perpendicular to slices (feet): {main_slice_job.sliceWidthFeet()}")
+		num_slices_of_material = int(main_slice_job.sliceWidthFeet() / (main_config["material_width_inches"] * scale_feet_per_inch))
+		log.echo(f"results in {num_slices_of_material} layers of material to match mapped width")
+		linear_feet_material = (main_svg_config.slice_width_inches * num_slices_of_material) / 12.0
+		log.echo(f"which comes to {linear_feet_material} linear feet of material")
+
+	# --------------------------------------------------------------------------
+	# step out here if only wanted job file report
+	if main_config["no_output"]:
+		log.echo()
+		log.echo("specified no_output option, exiting")
+		quit()
 
 	# --------------------------------------------------------------------------
 	# create height map
-	log.echo()
-	log.echo("creating height map")
+	logSectionHeader("creating height map")
 	gtimer.startTimer("load height map")
 
 	main_height_map = HeightMap(name = "MHM")
@@ -280,34 +327,35 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# generate slices
-	log.echo()
-	log.echo("generating slices")
-	gtimer.startTimer("generate all slices")
+	logSectionHeader("generating slices")
 
-	main_slices = generateTopoSlices(main_slice_job)
+	gtimer.startTimer("generate all slices")
+	main_slice_job.generateSlices()
 	gtimer.markTimer("generate all slices")
+
+	log.echo(f"generated {main_slice_job.numSlices()} slices")
 
 	# --------------------------------------------------------------------------
 	# get elevations
-	log.echo()
-	log.echo("getting elevations")
+	logSectionHeader("getting elevations")
 	gtimer.startTimer("get elevations")
 
-	if main_config["async_http"]:
-		asyncio.run(getElevationsAsync(main_slices, main_height_map))
-	else:
-		getElevations(main_slices, main_height_map)
+	total_elevations_queried = asyncio.run(getElevationsAsync(main_slice_job, main_height_map))
 
 	gtimer.markTimer("get elevations")
 
+	log.echo()
+	log.echo(f"queried {total_elevations_queried} elevations")
+	log.echo(f"minimum elevation: {main_slice_job.minimumElevation()} feet")
+	log.echo(f"maximum elevation: {main_slice_job.maximumElevation()} feet")
+
 	# --------------------------------------------------------------------------
 	# generate svg's
+	logSectionHeader("generating svg files")
 	if main_svg_config:
-		log.echo()
-		log.echo("generating svg files")
 		gtimer.startTimer("generate svg file(s)")
 
-		slicesToSVG(main_slices, main_svg_config) # , main_config["job_file_path"])
+		slicesToSVG(main_slice_job.slices, main_svg_config) # , main_config["job_file_path"])
 
 		gtimer.markTimer("generate svg file(s)")
 	else:
@@ -331,11 +379,13 @@ def main_func():
 
 	# --------------------------------------------------------------------------
 	# height map final stats
-	log.echo()
+	logSectionHeader("height map usage stats")
 	log.echo(main_height_map.Stats())
 
+	# --------------------------------------------------------------------------
+	# timings
+	logSectionHeader("timings")
 	if main_config["report_timings"]:
-		log.echo()
 		log.echo(gtimer.report())
 
 

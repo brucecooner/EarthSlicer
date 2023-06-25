@@ -410,7 +410,8 @@ def slicesToGridRow(slices, min_global_elevation, config:SVGConfig):
 def slicesToSVG(slices:list[Slice], config:SVGConfig):
 
 	# extend the svg config a bit...TODO: this somewhere else
-	config.addProperties({"layers_grid_x_spacing":0.5, "layers_grid_y_spacing":0.25})
+	# moved to main
+	# config.addProperties({"layers_grid_x_spacing":0.5, "layers_grid_y_spacing":0.25})
 
 	# have to know the minimum world elevation in the job as every slice has to be adjusted in screen space for it
 	min_global_elevation = min([cur_slice.minimum_elevation for cur_slice in slices])
@@ -461,6 +462,7 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 		# coordinates, but we want to move it DOWN in screen space, or in a positive y direction, so reverse the min y
 		total_y_transform += (-cur_row_result[0] + (0 if cur_row_index == 0 else config.layers_grid_y_spacing))
 
+		svg_files_written = 0
 		for cur_row_slice in cur_row_result[1]:
 			log.slicesToSVG(f"adding row slice to svg...")
 			log.slicesToSVG(f"total_y_transform:{total_y_transform}")
@@ -470,15 +472,16 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 			cur_svg.addNode(cur_row_slice)
 		# are we beyond max_y now? or at last row?
 		if (total_y_transform >= config.layers_grid_max_y) or cur_row_index >= (len(row_results)-1):
-			# write current svg, start another
-			log.todo("no file suffix if only one file")
-			log.todo("detect svg extension in svg config and add suffixes around it? Or just roll with it")
+			# write current svg
 			cur_filename = f"{config.svg_base_filename}-{cur_file_suffix}"
+			cur_filename += ".svg"
 			cur_path_and_filename = os.path.join(config.base_path, cur_filename)
-			log.slicesToSVG(f"writing file: {cur_path_and_filename}")
+			log.echo(f"writing svg file: {cur_path_and_filename}")
 			cur_svg.write(cur_path_and_filename)
+			svg_files_written += 1
 			cur_svg = InkscapeSVG()
 			cur_file_suffix += 1
 
 		cur_row_index += 1
 
+	log.echo(f"generated {svg_files_written} svg files")
