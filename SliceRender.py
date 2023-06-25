@@ -481,6 +481,7 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 			svg_files_written += 1
 			cur_svg = InkscapeSVG()
 			cur_file_suffix += 1
+			total_y_transform = 0
 
 		cur_row_index += 1
 
