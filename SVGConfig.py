@@ -1,6 +1,6 @@
 # configuration of a slice job svg
 from support.ClassFromDict import ClassFromDict
-from support.ValidateDict import validateDict, checkValidator, validateDict_PostValidateFnKey
+from support.ValidateDict import validateDict, checkValidator, validateDict_PostValidateFnKey, validateIsPositive
 
 
 # ------------------------------------------------------------------------------------------------------
@@ -34,6 +34,7 @@ class SVGConfig(ClassFromDict):
 	# this is considered the source of truth for which keys a svg job config should have
 	@staticmethod
 	def getConfigValidator():
+
 		def postValidateSVGConfig(config):
 			if config["layers_grid_min_x"] >= config["layers_grid_max_x"]:
 				return (False, f"layers_grid_min_x({config['layers_grid_min_x']}) >= layers_grid_max_x({config['layers_grid_max_x']})")
@@ -41,16 +42,28 @@ class SVGConfig(ClassFromDict):
 			if config["layers_grid_min_y"] >= config["layers_grid_max_y"]:
 				return (False, f"layers_grid_min_y({config['layers_grid_min_y']}) >= layers_grid_max_y({config['layers_grid_max_y']})")
 			return True
+		
+		notch_config_validator = {
+			"count" : { "required":False, "type":int, "validation_fn" : validateIsPositive },
+			"width" : { "required":False, "type":float, "validation_fn" : validateIsPositive },
+			"depth" : { "required":False, "type":float, "validation_fn" : validateIsPositive },
+		}
+
+		def validateNotchConfig(val, key):
+			# TODO: not the greatest, this should be handled by the validator itself!
+			return validateDict(val, notch_config_validator, True)
+
 		return {
-			"slice_width_inches" : { "required":True, "type": float },
-			"vertical_scale" : { "required":True, "type": float },
+			"slice_width_inches" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
+			"vertical_scale" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
 			"smoothed" : { "required":True, "type": bool },
 			"svg_base_filename" : { "required":True, "type": str },
 			"layers_grid_min_x" : { "required":True, "type": float },
 			"layers_grid_max_x" : { "required":True, "type": float },
 			"layers_grid_min_y" : { "required":True, "type":float },
 			"layers_grid_max_y" : { "required":True, "type": float },
-			"base_inches" : { "required":True, "type":float},
+			"base_inches" : { "required":True, "type":float, "validation_fn" : validateIsPositive },
+			"bottom_notch_config": { "required":False, "type":dict, "validation_fn": validateNotchConfig },
 			validateDict_PostValidateFnKey : postValidateSVGConfig
 		}
 
@@ -63,10 +76,10 @@ class SVGConfig(ClassFromDict):
 			"vertical_scale" : 1.0,
 			"smoothed" : True,
 			"svg_base_filename" : "earthslicer_default",
-			"layers_grid_min_x" : 0,
-			"layers_grid_max_x" : 20,
-			"layers_grid_min_y" : 0,
-			"layers_grid_max_y" : 12,
+			"layers_grid_min_x" : 0.0,
+			"layers_grid_max_x" : 20.0,
+			"layers_grid_min_y" : 0.0,
+			"layers_grid_max_y" : 12.0,
 			"base_inches" : 1.0
 		}
 		# just validate this every time with exception
@@ -121,6 +134,11 @@ if __name__ == "__main__":
 	bad_config = SVGConfig.getDefaultConfig()
 	bad_config["svg_base_filename"] = {"foo":1} # a more subtle error, this is not a valid slice dir
 	testForException("svg_base_filename wrong type", lambda: SVGConfig(bad_config))
+
+	print()
+	negative_slice_width_inches_config = SVGConfig.getDefaultConfig()
+	negative_slice_width_inches_config["slice_width_inches"] = -1.0
+	testForException("slice width inches < 0", lambda: SVGConfig(negative_slice_width_inches_config))
 
 	print()
 	# test post validate

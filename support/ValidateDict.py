@@ -9,11 +9,16 @@
 #		validation_fn must return: True or (result, result_message)
 
 # TODO:
-#	* might be nice to have parameters for validation_fn, maybe, not sure
+#	* bug for type:dict rules?
 #	* validate sub-dicts recursively? want to do this with a lambda that calls validator again?
-#	* allow optional properties
+#	* might be nice to have parameters for validation_fn, maybe, not sure
 
 validateDict_PostValidateFnKey = "validateDictPostFn"
+
+# -------------------------------------------------------------------------------------
+def validateIsPositive(val, key):
+	return True if val > 0 else (False, f"{key} must be > 0")
+
 
 # -------------------------------------------------------------------------------------
 def checkRule(rule_key, rule):
@@ -87,14 +92,16 @@ def validateDict(validate_dict:dict, rules:dict, throw_on_fail:bool = True, trac
 			if cur_rule_key in validate_dict:
 				trace(f"\t{cur_rule_key} in dict")
 				cur_validation_value = validate_dict[cur_rule_key]
+				# validate type
 				if type(cur_validation_value) != cur_rule["type"]:
 					trace(f"\tincorrect type, failure")
 					validation_result = False
 					failures.append(f"property {cur_rule_key} is not of type {cur_rule['type']}")
 
+				# validation function?
 				if "validation_fn" in cur_rule:
 					validationFn = cur_rule["validation_fn"]
-					fn_result = validationFn(cur_validation_value)
+					fn_result = validationFn(cur_validation_value, cur_rule_key)
 					if fn_result != True:
 						trace(f"\tvalidation_fn failed: result={fn_result}")
 						validation_result = False

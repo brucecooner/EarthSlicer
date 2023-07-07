@@ -10,9 +10,7 @@ from Slice import SliceDirection, Slice
 
 # TODO:
 #	* weird little bug where last (rightmost segment) isn't smoothed?
-#	* use vertical scale?
 #	* is there a max layer count in inkscape?
-#	* logic to render N/W lettering
 #	* number rendering to its own module or something
 
 # DONE:
@@ -226,6 +224,8 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	text_color_string = "00aa00"
 	arrow_color_string = "00aa00"
 
+	# ------------
+	# scale
 	slice_feet = slice.sliceLengthFeet()
 	slice_inches = slice_feet * 12.0 # probably a big number
 
@@ -240,9 +240,23 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	x_step_inches = config.slice_width_inches / (len(slice.elevations)-1)
 	x_step_half = x_step_inches * 0.5
 
-	# remember that y coordinates go UP from start, so I guess that works since we're dealing with elevations?
-	slice_path = InkscapePath(cur_x, start_y)
+	# control points
+	c1x = 0
+	c1y = 0
+	c2x = 0
+	c2y = 0
 
+	# ------------
+	# notch config
+	notch_count = None
+	if hasattr(config, "bottom_notch_config"):
+		notch_count = config.bottom_notch_config["count"]
+		notch_step = config.slice_width_inches / (config.bottom_notch_config["count"] + 1)
+		notch_width = config.bottom_notch_config["width"]
+		notch_depth = config.bottom_notch_config["depth"]
+
+	# ------------
+	# cross config
 	# set to >0 to turn on crosses on topo and control points
 	cross_width = 0.0 # grrr, broken 0.25
 	if cross_width > 0:
@@ -253,6 +267,7 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 		points_path = InkscapePath(0,0)
 		points_path.setColor("0000ff")
 
+	# -------------------------------------------
 	# compute slopes (also convert to svg inches)
 	# note that there are one fewer slopes than there are elevations(points)
 	# (cuz slopes are measured between points)
@@ -260,7 +275,13 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	for cur_index in range(0,len(slice.elevations) - 1):
 		slopes.append((slice.elevations[cur_index + 1] - slice.elevations[cur_index]) * 12 * slice_inches_to_svg_inches)
 
-	# move up "left" side to first elevation
+	# -------------
+	# begin drawing
+	# remember that y coordinates go UP from start, so I guess that works since we're dealing with elevations?
+	slice_path = InkscapePath(cur_x, start_y)
+
+	# --------------
+	# "left" side
 	cur_elevation = slice.elevations[0]
 
 	cur_y = elevationToY(cur_elevation, start_y, config.base_inches, minimum_elevation
@@ -269,12 +290,8 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	# draw line up to first (0 index) point...
 	slice_path.draw(cur_x, cur_y)
 
-	# control points
-	c1x = 0
-	c1y = 0
-	c2x = 0
-	c2y = 0
-
+	# ----------------------------------------------
+	# draw elevation points (terrain along "top" of path)
 	# note: looping from 1 because index 0 is leftmost point, and already drawn (above)
 	for cur_index in range(1, len(slice.elevations)):
 		last_y = cur_y
@@ -284,7 +301,7 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 		cur_elevation = slice.elevations[cur_index]
 		cur_y = elevationToY(cur_elevation,start_y, config.base_inches, minimum_elevation
 					,slice_inches_to_svg_inches, config.vertical_scale)
-		
+
 		# track minimum y coordinate
 		min_y = cur_y if not min_y else min(min_y, cur_y)
 
@@ -320,10 +337,33 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 				renderCross(c2x, c2y, cross_width,cross_width, c2_path)
 				renderCross(cur_x,cur_y, cross_width,cross_width, points_path)
 
-
+	# ---------------
+	# draw right side
 	# at end, move back DOWN to min_y
 	# (and set path back to Line draw mode)
 	slice_path.Ldraw(cur_x, start_y)
+
+	# now at bottom "right" (max x) corner 
+
+	# -----------
+	# draw bottom 
+
+	# notches ?
+	if notch_count:
+		current_notch_center = cur_x - notch_step
+		for cur_notch in range(notch_count):
+			cur_x = current_notch_center + (notch_width / 2.0) # slight step "right"
+			current_notch_center -= notch_step
+			# draw to next notch...
+			slice_path.draw(cur_x, start_y)
+			# up
+			slice_path.draw(cur_x, start_y - notch_depth)
+			# left
+			slice_path.draw(cur_x - notch_width, start_y - notch_depth)
+			# down
+			slice_path.draw(cur_x - notch_width, start_y)
+
+	# finalize bottom line, to bottom "left" corner
 	slice_path.draw(start_x, start_y)
 	# note that slice_path doesn't get closed, so the laser cutter will start
 	# its cut there instead of a random point along the slope (probably)
@@ -420,6 +460,8 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 	num_slices_per_row = ceil(grid_width / (config.slice_width_inches + config.layers_grid_x_spacing))
 	row_results = []
 
+	
+
 	log.slicesToSVG(f"slicesToSVG() num slices: {len(slices)}")
 	log.slicesToSVG(f"min_global_elevation:{min_global_elevation}")
 	log.slicesToSVG(f"grid_width:{grid_width}")
@@ -429,13 +471,15 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 
 	# first just render ALL the rows...
 	log.slicesToSVG("rendering all rows...")
+
 	while cur_slice_index < len(slices):
-		log.slicesToSVG(f"cur_slice_index:{cur_slice_index}")
-		log.slicesToSVG(f"slicing to index: {cur_slice_index + num_slices_per_row}")
+		# log.slicesToSVG(f"cur_slice_index:{cur_slice_index}")
+		# log.slicesToSVG(f"slicing to index: {cur_slice_index + num_slices_per_row}")
 		# get slices for current row
 		cur_row_slices = slices[cur_slice_index: cur_slice_index + num_slices_per_row]
-		log.slicesToSVG(f"cur_row_slices len: {len(cur_row_slices)}")
+		# log.slicesToSVG(f"cur_row_slices len: {len(cur_row_slices)}")
 		cur_slice_index += num_slices_per_row
+		log.slicesToSVG(f"cur_slice_index: {cur_slice_index}")
 		row_results.append(slicesToGridRow(cur_row_slices, min_global_elevation, config))
 
 	log.slicesToSVG(f"row_results len: {len(row_results)}")
@@ -450,6 +494,11 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 	cur_file_suffix = 0 # appended to file names
 	cur_row_index = 0
 	total_y_transform = 0
+	svg_files_written = 0
+
+	slices_in_current_svg = 0
+	cur_file_start_slice_index = 0
+	cur_file_end_slice_index = 0
 
 	# move rows into grids until they're all gone
 	while cur_row_index < len(row_results):
@@ -462,27 +511,44 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 		# coordinates, but we want to move it DOWN in screen space, or in a positive y direction, so reverse the min y
 		total_y_transform += (-cur_row_result[0] + (0 if cur_row_index == 0 else config.layers_grid_y_spacing))
 
-		svg_files_written = 0
 		for cur_row_slice in cur_row_result[1]:
 			log.slicesToSVG(f"adding row slice to svg...")
 			log.slicesToSVG(f"total_y_transform:{total_y_transform}")
-
 			cur_row_slice.setTransform(0, total_y_transform)
 			# add current slice to svg
 			cur_svg.addNode(cur_row_slice)
+
+		# update numbers for added row
+		slices_in_current_svg += num_slices_per_row
+		# cur_file_end_slice_index += num_slices_per_row	# subtract one because zero based
+		log.slicesToSVG(f"slices_in_current_svg: {slices_in_current_svg}")
+
 		# are we beyond max_y now? or at last row?
 		if (total_y_transform >= config.layers_grid_max_y) or cur_row_index >= (len(row_results)-1):
 			# write current svg
-			cur_filename = f"{config.svg_base_filename}-{cur_file_suffix}"
+			cur_file_end_slice_index = cur_file_start_slice_index + slices_in_current_svg - 1
+
+			# cur_filename = f"{config.svg_base_filename}-{cur_file_suffix}-"
+			cur_filename = config.svg_base_filename
+			if hasattr(config, "filename_info_string"):
+				cur_filename += "-" + config.filename_info_string
+			cur_filename += f"-{cur_file_start_slice_index}-{cur_file_end_slice_index}"
 			cur_filename += ".svg"
 			cur_path_and_filename = os.path.join(config.base_path, cur_filename)
+
 			log.echo(f"writing svg file: {cur_path_and_filename}")
+			log.echo(f"   {slices_in_current_svg} slices  {cur_file_start_slice_index}-{cur_file_end_slice_index}")
+
 			cur_svg.write(cur_path_and_filename)
 			svg_files_written += 1
 			cur_svg = InkscapeSVG()
 			cur_file_suffix += 1
+			# reset for next file
 			total_y_transform = 0
+			cur_file_start_slice_index += slices_in_current_svg
+			slices_in_current_svg = 0
 
 		cur_row_index += 1
 
+	log.echo()
 	log.echo(f"generated {svg_files_written} svg files")

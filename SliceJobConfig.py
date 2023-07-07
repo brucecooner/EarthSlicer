@@ -1,6 +1,6 @@
 # configuration of a slice job
 from support.ClassFromDict import ClassFromDict
-from support.ValidateDict import validateDict, checkValidator
+from support.ValidateDict import validateDict, checkValidator, validateDict_PostValidateFnKey, validateIsPositive
 from support.LogChannels import log
 from unitsSupport import *
 from Slice import SliceDirection
@@ -25,11 +25,11 @@ class SliceJobConfig(ClassFromDict):
 	def fromDict(self, slice_config:dict):
 		SliceJobConfig.validateConfig(slice_config, throw_on_fail=True)
 
-		self.addProperties(slice_config, SliceJobConfig.getConfigValidator().keys())
+		self.addProperties(slice_config, slice_config.keys()) # SliceJobConfig.getConfigValidator().keys())
 		#TODO: specially handle slice_direction here...
 		self.slice_direction = SliceDirection.toSliceDirection(self.slice_direction)
 
-		self.repr_keys = [cur_val_key for cur_val_key in SliceJobConfig.getConfigValidator()]
+		self.repr_keys = [cur_val_key for cur_val_key in slice_config.keys()] # SliceJobConfig.getConfigValidator()]
 		self.calcMetrics()
 
 	# ------------------------------------------------------------------------------------------------------
@@ -57,17 +57,28 @@ class SliceJobConfig(ClassFromDict):
 	# this is considered the source of truth for which keys a slice job config should have
 	@staticmethod
 	def getConfigValidator():
-		def validateSliceDir(val):
+		def sliceConfigPostValidator(cfg):
+			# north lat must be > south lat
+			if cfg["north_edge"] <= cfg["south_edge"]:
+				return (False, "north_edge must be > south_edge")
+			# west longitude must be < east longitude (decreasing to the west)
+			if cfg["west_edge"] > cfg["east_edge"]:
+				return (False, "east_edge must be > west_edge")
+			return True
+
+		def validateSliceDir(val, key):
 			return True if SliceDirection.isValidSliceDir(val) else (False, f"{val} is not a valid SliceDirection")
+
 		return {
 			# actually, an enum, but will come in as a string and we'll convert manually anyway
 			"slice_direction": { "required":True, "type": str, "validation_fn": validateSliceDir },
-			"number_of_elevations" : { "required":True, "type": int },
-			"number_of_slices" : { "required":True, "type": int },
+			"number_of_elevations" : { "required":True, "type": int, "validation_fn" : validateIsPositive },
+			"number_of_slices" : { "required":True, "type": int, "validation_fn" : validateIsPositive },
 			"north_edge" : { "required":True, "type": float },
 			"south_edge" : { "required":True, "type": float },
 			"east_edge" : { "required":True, "type": float },
-			"west_edge" : { "required":True, "type": float }
+			"west_edge" : { "required":True, "type": float },
+			validateDict_PostValidateFnKey : sliceConfigPostValidator
 		}
 
 	# ------------------------------------------------------------------------------------------------------
@@ -80,8 +91,8 @@ class SliceJobConfig(ClassFromDict):
 			"number_of_slices" : 10,
 			"north_edge" : 1.0,
 			"south_edge" : 0.0,
-			"east_edge" : 0.0,
-			"west_edge" : 1.0
+			"east_edge" : 1.0,
+			"west_edge" : 0.0
 		}
 		log.sjc(f"getDefaultConfig(): {default_config}")
 		# just validate this every time with exception
@@ -161,11 +172,49 @@ if __name__ == "__main__":
 	testForException("exception for bad slice direction", lambda: SliceJobConfig(bad_config))
 
 	print()
+	num_slices_zero_config = SliceJobConfig.getDefaultConfig()
+	num_slices_zero_config["number_of_slices"] = 0
+	testForException("exception for number_of_slices = 0", lambda: SliceJobConfig(num_slices_zero_config))
+
+	print()
+	num_slices_negative_config = SliceJobConfig.getDefaultConfig()
+	num_slices_negative_config["number_of_slices"] = -1
+	testForException("exception for number_of_slices = -1", lambda: SliceJobConfig(num_slices_negative_config))
+
+	print()
+	num_elevations_zero_config = SliceJobConfig.getDefaultConfig()
+	num_elevations_zero_config["number_of_elevations"] = 0
+	testForException("exception for number_of_slices = 0", lambda: SliceJobConfig(num_elevations_zero_config))
+
+	print()
+	num_elevations_negative_config = SliceJobConfig.getDefaultConfig()
+	num_elevations_negative_config["number_of_slices"] = -1
+	testForException("exception for number_of_elevations = -1", lambda: SliceJobConfig(num_elevations_negative_config))
+
+	print()
+	num_slices_negative_config = SliceJobConfig.getDefaultConfig()
+	num_slices_negative_config["number_of_slices"] = -1
+	testForException("exception for number_of_slices = -1", lambda: SliceJobConfig(num_slices_negative_config))
+
+	print()
+	north_lt_south_config = SliceJobConfig.getDefaultConfig()
+	north_lt_south_config["north_edge"] = -1.0
+	north_lt_south_config["south_edge"] = 0.0
+	testForException("exception for north edge < south edge", lambda: SliceJobConfig(north_lt_south_config))
+
+	print()
+	east_lt_west_config = SliceJobConfig.getDefaultConfig()
+	east_lt_west_config["east_edge"] = -33.0
+	east_lt_west_config["west_edge"] = -31.0
+	testForException("exception for east edge < west edge", lambda: SliceJobConfig(east_lt_west_config))
+
+	print()
 	print("a passing case")
 	good_config = SliceJobConfig.getDefaultConfig()
 	good_config["slice_direction"] = "WestEast"
 	good_config["number_of_elevations"] = 78
-	good_config["west_edge"] = 10.1
+	good_config["east_edge"] = -9.1
+	good_config["west_edge"] = -10.1
 	good_config_instance = SliceJobConfig(good_config)
 
 	print("result:")

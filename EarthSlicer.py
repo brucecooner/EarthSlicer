@@ -20,28 +20,42 @@ from USGS_EPQS import USGS_EPQS
 from SliceJobConfig import SliceJobConfig
 from SliceJob import SliceJob
 from SVGConfig import SVGConfig
-from Slice import Slice, SliceDirection
+from Slice import SliceDirection
 from SliceRender import slicesToSVG
-from TopoSlicer import generateTopoSlices
 
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
+#	* allow overriding any config option?
+#	* render only odd/even slices?
+#	* add coords to output slices?
+#	* allow material width inches to override configured number of slices?
+#	* emsmallen the text
+#	* validator: better way to denote keys that belong to dict, and keys that belong to validator
+#	* registration marks?
+#	* wide svg's via overlap
+#	* add extended tags to svg's <earthslicer /> ? (desc. / coordinates / ?)
+#	* render numbers/letters at origin, translate to final position
+#	* DOCUMENTATION! - default job file for reference, or ability to create one from configs
+#	* better help if no slice job specified (include example config file)
 #	* hollowing out svgs
-#	* help if no slice job specified (include example config file)
-#	* slice job config post validator
-#	* output info about svg files created
+#	* output info about svg files created (layers/?)
 #	* formalize some svg generation tests (rows x columns and stuff)
 #	* config: silence option
-# 	* config:input: validate inputs / range checks - sorta doing this with validator
 #	* config: specify height map filename?
 #	* optionally view height map stats?
 #	* far future: flatten areas
 #	* progress feedback when getting lots of elevations
 
 # DONE:
+#	* notches in bottom option?
+#	* put slice numbers in output svg names
+# 	* config:input: validate inputs / range checks - sorta doing this with validator
+#	* BUG: reports incorrect number of svg files written!
+#	* slice job config post validator
+#	* ----- VERSION 1.0 ----------------------------------
 #	* linear feet of material required
 #	* mark between filename and suffix (numbers get multiplied by 10!)
 #	* output slice metrics 
@@ -190,7 +204,7 @@ def main_func():
 	parser.add_argument("job_file", help="json file specifying an earth slice job") #refine this later
 	parser.add_argument("--material_width_inches", help="enter width of material used for slices, will report\
 		     number of slices needed based on size of modeled area")
-	parser.add_argument("--no_output", help="load slice job and report its config, but take no action", action="store_true")
+	parser.add_argument("--no_output", help="load slice job and report its config, then exit", action="store_true")
 
 	args = parser.parse_args()
 
@@ -275,6 +289,7 @@ def main_func():
 		scale_feet_per_inch = main_slice_job.sliceLengthFeet() / main_svg_config.slice_width_inches
 		log.echo(f"svg config specified a width of {main_svg_config.slice_width_inches} inches")
 		log.echo(f"giving a scale of {scale_feet_per_inch} feet per inch")
+		log.echo(f"or {scale_feet_per_inch / 5280} miles per inch")
 	else:
 		log.echo(f"no svg config given, unable to determine map scale")
 
@@ -355,7 +370,11 @@ def main_func():
 	if main_svg_config:
 		gtimer.startTimer("generate svg file(s)")
 
-		slicesToSVG(main_slice_job.slices, main_svg_config) # , main_config["job_file_path"])
+		direction_abbr = "NS" if main_slice_job.config.slice_direction == SliceDirection.NorthSouth else "WE"
+		slice_svg_width = f"{main_svg_config.slice_width_inches}in"
+		main_svg_config.addProperties({"filename_info_string" : direction_abbr + "-" + slice_svg_width})
+
+		slicesToSVG(main_slice_job.slices, main_svg_config)
 
 		gtimer.markTimer("generate svg file(s)")
 	else:

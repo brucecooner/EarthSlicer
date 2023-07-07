@@ -1,2 +1,2 @@
-# TopoVSlicer
+# EarthSlicer
 vertical topography slicer
