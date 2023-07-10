@@ -59,7 +59,10 @@ class SliceJob():
 	# -------------------------------------------------------------------
 	def generateSlices(self):
 		slices = []
-		slice_num = 0
+		# slice_num = 0
+
+		# testing
+		nth_slices_only = 2
 
 		# some messy looping shit, hey i drunk now, back off
 		if self.config.slice_direction == SliceDirection.NorthSouth:
@@ -71,16 +74,18 @@ class SliceJob():
 			else:
 				long_step = 0
 
-			for current_step in range(self.config.number_of_slices):
+			# doesn't current_step and slice_num just move in lockstep?
+			for current_slice_num in range(self.config.number_of_slices):
 				# do some shit
-				current_slice = Slice(	self.config.north_edge, current_long,
-												self.config.south_edge, current_long,
-												self.config.number_of_elevations,
-												self.config.slice_direction,
-												slice_num)
+				if current_slice_num % nth_slices_only == 0:
+					current_slice = Slice(	self.config.north_edge, current_long,
+													self.config.south_edge, current_long,
+													self.config.number_of_elevations,
+													self.config.slice_direction,
+													current_slice_num) # slice_num)
 
-				slices.append(current_slice)
-				slice_num += 1
+					slices.append(current_slice)
+				# slice_num += 1
 				current_long += long_step
 		else:
 			# slicing west/east
@@ -88,18 +93,19 @@ class SliceJob():
 			current_lat = self.config.north_edge
 			lat_step = self.calcStep(self.config.north_edge, self.config.south_edge, self.config.number_of_slices)
 
-			for current_step in range(self.config.number_of_slices):
-				gtimer.startTimer('generate single slice')
-				current_slice = Slice(	current_lat, self.config.west_edge,
-												current_lat, self.config.east_edge,
-												self.config.number_of_elevations,
-												self.config.slice_direction,
-												slice_num)
+			for current_slice_num in range(self.config.number_of_slices):
+				if current_slice_num % nth_slices_only == 0:
+					gtimer.startTimer('generate single slice')
+					current_slice = Slice(	current_lat, self.config.west_edge,
+													current_lat, self.config.east_edge,
+													self.config.number_of_elevations,
+													self.config.slice_direction,
+													current_slice_num) # slice_num)
 
-				gtimer.markTimer('generate single slice')
+					gtimer.markTimer('generate single slice')
 
-				slices.append(current_slice)
-				slice_num += 1
+					slices.append(current_slice)
+				# slice_num += 1
 				current_lat += lat_step
 
 		self.slices = slices

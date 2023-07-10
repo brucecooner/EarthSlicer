@@ -1,0 +1,12 @@
+{
+	"end_cap_width_1": 0.35,
+	"end_cap_width_2": 0.1,
+	"notch_width" : 0.09,
+	"notch_depth" : 0.18,
+	"notch_depth_below": 0.125,
+	"notch_count" : 39,
+	"notch_separation" : 0.12,
+	"mark_nth_notches" : 5
+}
+
+

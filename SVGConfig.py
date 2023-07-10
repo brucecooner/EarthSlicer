@@ -44,9 +44,11 @@ class SVGConfig(ClassFromDict):
 			return True
 		
 		notch_config_validator = {
-			"count" : { "required":False, "type":int, "validation_fn" : validateIsPositive },
-			"width" : { "required":False, "type":float, "validation_fn" : validateIsPositive },
-			"depth" : { "required":False, "type":float, "validation_fn" : validateIsPositive },
+			"count" : { "required":True, "type":int, "validation_fn" : validateIsPositive },
+			"width" : { "required":True, "type":float, "validation_fn" : validateIsPositive },
+			"depth" : { "required":True, "type":float, "validation_fn" : validateIsPositive },
+			# distance from end of slice to outermost notch(es)
+			"distance_from_ends" : { "required":False, "type":float, "validation_fn" : validateIsPositive }
 		}
 
 		def validateNotchConfig(val, key):

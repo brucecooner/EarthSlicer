@@ -32,6 +32,8 @@ class NotchedBarConfig(ClassFromDict):
 		if not hasattr(self, "notch_separation"):
 			self.addProperties({"notch_separation": self.notch_width})
 
+		self.addProperties({"bar_height": self.notch_depth + self.notch_depth_below})
+
 	# -------------------------------------------------------------------------------------
 	def fromDict(self, nb_config:dict):
 		NotchedBarConfig.validateConfig(nb_config, throw_on_fail=True)
@@ -42,28 +44,30 @@ class NotchedBarConfig(ClassFromDict):
 	def __repr__(self):
 		srep = ""
 
-		# print all keys in validator
-		validator = NotchedBarConfig.getConfigValidator()
-		for cur_rule_key  in validator.keys():
-			# some keys are optional
-			if hasattr(self, cur_rule_key):
-				srep += f"   {cur_rule_key}: {getattr(self, cur_rule_key)}\n"
+		members = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")]
+		for cur_member in members:
+			srep += f"   {cur_member}: {getattr(self, cur_member)}\n"
 
 		return srep
 
 	# ------------------------------------------------------------------------------------------------------
-	# this is considered the source of truth for which keys a svg job config should have
+	# this is considered the source of truth for which keys a notched bar config should have
 	@staticmethod
 	def getConfigValidator():
 		return {
 			# "extry" length at end of bar
-			"end_cap_width" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
-			"bar_height" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
+			"end_cap_width_1" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
+			"end_cap_width_2" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
 			"notch_width" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
 			"notch_depth" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
+			# notch_depth_below is the solid be below the notch, the bar's height would then be the
+			# depth, plus notch_depth_below
+			"notch_depth_below" : { "required":True, "type": float, "validation_fn" : validateIsPositive  },
 			"notch_count" : { "required":True, "type": int, "validation_fn" : validateIsPositive  },
 			# TODO: if notch_separation is not specified, distance between notches is equal to notch_width
-			"notch_separation" : { "required":False, "type": float, "validation_fn" : validateIsPositive  }
+			"notch_separation" : { "required":False, "type": float, "validation_fn" : validateIsPositive  },
+			# if present, a mark is placed under first and every nth notch
+			"mark_nth_notches" : { "required":False, "type":int, "validation_fn" : validateIsPositive }
 			# validateDict_PostValidateFnKey : postValidateSVGConfig
 		}
 
@@ -75,6 +79,7 @@ class NotchedBarConfig(ClassFromDict):
 			"end_cap_width" : 1.0,
 			"notch_width" : 0.125,
 			"notch_depth" : 0.125,
+			"notch_depth_below" : 0.125,
 			"notch_count" : 10,
 			"notch_separation" : 0.125
 		}
@@ -123,6 +128,9 @@ def generateNotchedBarLayer(left_x:float, bottom_y:float, config:NotchedBarConfi
 	# remember that y coordinates go UP from start, so I guess that works since we're dealing with elevations?
 	bar_path = InkscapePath(left_x, bottom_y)
 
+	marks_path = InkscapePath(left_x, bottom_y)
+	marks_path.setColor("00aa00")
+
 	# --------------
 	# up "left" side
 	# draw line up to upper left corner
@@ -131,7 +139,7 @@ def generateNotchedBarLayer(left_x:float, bottom_y:float, config:NotchedBarConfi
 	# ----------------------------------------------
 	# draw "top" of bar
 	# add end cap
-	cur_x = left_x + config.end_cap_width
+	cur_x = left_x + config.end_cap_width_1
 	top_y = bottom_y - config.bar_height
 
 	# draw end cap
@@ -150,13 +158,21 @@ def generateNotchedBarLayer(left_x:float, bottom_y:float, config:NotchedBarConfi
 		# up...
 		cur_y = top_y
 		bar_path.draw(cur_x, top_y)
+
+		# make mark?
+		if hasattr(config, "mark_nth_notches"):
+			if cur_notch == 0 or (cur_notch + 1) % config.mark_nth_notches == 0:
+				mark_y = top_y + config.notch_depth + (config.notch_depth_below / 2)
+				marks_path.move(cur_x - config.notch_width, mark_y)
+				marks_path.draw(cur_x, mark_y)
+
 		# over to edge of next notch (unless last one)
 		if cur_notch < config.notch_count - 1:
 			cur_x += config.notch_separation
 			bar_path.draw(cur_x, cur_y)
 
 	# add other end cap
-	cur_x += config.end_cap_width
+	cur_x += config.end_cap_width_2
 	bar_path.draw(cur_x,cur_y)
 
 	# ---------------
@@ -175,6 +191,7 @@ def generateNotchedBarLayer(left_x:float, bottom_y:float, config:NotchedBarConfi
 	# the path goes into a layer group
 	bar_layer_group = InkscapeGroup(f"notched_bar", True)
 	bar_layer_group.addNode(bar_path)
+	bar_layer_group.addNode(marks_path)
 
 	return bar_layer_group
 
@@ -184,16 +201,19 @@ def generateNotchedBarSVG(left_x:float, bottom_y:float, config:NotchedBarConfig)
 	log.echo("notched bar config:")
 	log.echo(config)
 
-	# set up for building grids
 	svg = InkscapeSVG()
 
 	bar_layer = generateNotchedBarLayer(left_x, bottom_y, config)
 
 	svg.addNode(bar_layer)
 
-	log.echo(f"writing svg file: {config.svg_filename}")
+	filename_addendum = f"_cnt{config.notch_count}_wid{config.notch_width}_dep{config.notch_depth}_sep{config.notch_separation}"
 
-	svg.write(config.svg_filename)
+	final_filename = config.svg_filename + filename_addendum + ".svg"
+
+	log.echo(f"writing svg file: {final_filename}")
+
+	svg.write(final_filename)
 
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
@@ -270,7 +290,7 @@ def main_func():
 		main_config_dict["svg_filename"] = args.outfile
 	else:
 		# strip extension from config file to get svg filename
-		main_config_dict["svg_filename"] = os.path.splitext(main_config_dict["config_filename"])[0] + ".svg"
+		main_config_dict["svg_filename"] = os.path.splitext(main_config_dict["config_filename"])[0]
 
 	# --------------------------------------------------------------------------
 	# print banner

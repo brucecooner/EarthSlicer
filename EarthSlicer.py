@@ -28,8 +28,8 @@ from SliceRender import slicesToSVG
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-#	* allow overriding any config option?
-#	* render only odd/even slices?
+#	* allow parameter overriding any config option?
+#	* render only odd/even slices? (in progress, every nth slice)
 #	* add coords to output slices?
 #	* allow material width inches to override configured number of slices?
 #	* emsmallen the text

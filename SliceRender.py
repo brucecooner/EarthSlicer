@@ -249,11 +249,40 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	# ------------
 	# notch config
 	notch_count = None
+	notch_centers = None
 	if hasattr(config, "bottom_notch_config"):
 		notch_count = config.bottom_notch_config["count"]
-		notch_step = config.slice_width_inches / (config.bottom_notch_config["count"] + 1)
+		notch_dist_from_ends = dict.get(config.bottom_notch_config, "distance_from_ends", 0)
+
+		# since bottom of slice is drawn coming from higher x to lower x coords, notch centers must be
+		# put into array the same way, hence these calcs start at higher x coords
+		# also note that notch_centers are calculated starting at x = 0, so using them will 
+		# require translation to start_x
 		notch_width = config.bottom_notch_config["width"]
 		notch_depth = config.bottom_notch_config["depth"]
+		notch_half_width = notch_width / 2.0
+		notch_centers = []
+
+		if notch_count == 1:
+			# if only one notch, always goes in center
+			notch_centers.append(config.slice_width_inches / 2)
+		else:
+			if notch_dist_from_ends == 0:
+				# if dist from edge == 0, spread evenly across entire slice
+				notch_step = config.slice_width_inches / (notch_count + 1)
+				cur_notch_center = config.slice_width_inches - notch_step
+				for cur_notch in range(notch_count):
+					notch_centers.append(cur_notch_center)
+					cur_notch_center -= notch_step
+			else:
+				# if dist from edge > 0, distribute between slice minus the ends, with a notch at either end of this
+				# distance
+				# note: subtract dist from ends * 2, to get usable width, and use notch_count-1 to put a notch at the ends
+				notch_step = (config.slice_width_inches - (notch_dist_from_ends * 2.0)) / (notch_count-1)
+				cur_notch_center = config.slice_width_inches - notch_dist_from_ends
+				for cur_notch in range(notch_count):
+					notch_centers.append(cur_notch_center)
+					cur_notch_center -= notch_step
 
 	# ------------
 	# cross config
@@ -346,22 +375,32 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	# now at bottom "right" (max x) corner 
 
 	# -----------
-	# draw bottom 
+	# draw bottom
+
+	# draws not going to "left" (decreasing x)
+	def notchAt(nx, ny, ndepth, nwidth, path):
+		# up
+		path.draw(nx, ny - ndepth)
+		# left
+		path.draw(nx - nwidth, ny - ndepth)
+		# down
+		path.draw(nx - nwidth, ny)
 
 	# notches ?
+	# if notch_count:
+	# 	current_notch_center = cur_x - notch_step
+	# 	for cur_notch in range(notch_count):
+	# 		cur_x = current_notch_center + (notch_width / 2.0) # slight step "right"
+	# 		current_notch_center -= notch_step
+	# 		# draw to next notch...
+	# 		slice_path.draw(cur_x, start_y)
+	# 		notchAt(cur_x, start_y, notch_depth, notch_width, slice_path)
+
 	if notch_count:
-		current_notch_center = cur_x - notch_step
-		for cur_notch in range(notch_count):
-			cur_x = current_notch_center + (notch_width / 2.0) # slight step "right"
-			current_notch_center -= notch_step
-			# draw to next notch...
+		for cur_notch_center in notch_centers:
+			cur_x = start_x + cur_notch_center + notch_half_width
 			slice_path.draw(cur_x, start_y)
-			# up
-			slice_path.draw(cur_x, start_y - notch_depth)
-			# left
-			slice_path.draw(cur_x - notch_width, start_y - notch_depth)
-			# down
-			slice_path.draw(cur_x - notch_width, start_y)
+			notchAt(cur_x, start_y, notch_depth, notch_width, slice_path)
 
 	# finalize bottom line, to bottom "left" corner
 	slice_path.draw(start_x, start_y)
