@@ -208,6 +208,7 @@ def generateNotchedBarSVG(left_x:float, bottom_y:float, config:NotchedBarConfig)
 	svg.addNode(bar_layer)
 
 	filename_addendum = f"_cnt{config.notch_count}_wid{config.notch_width}_dep{config.notch_depth}_sep{config.notch_separation}"
+	filename_addendum += f"_el{config.end_cap_width_1}-er{config.end_cap_width_2}"
 
 	final_filename = config.svg_filename + filename_addendum + ".svg"
 
