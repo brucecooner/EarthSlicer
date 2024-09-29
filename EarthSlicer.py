@@ -29,10 +29,9 @@ from SliceRender import slicesToSVG
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
 #	* allow parameter overriding any config option?
-#	* render only odd/even slices? (in progress, every nth slice)
 #	* add coords to output slices?
 #	* allow material width inches to override configured number of slices?
-#	* emsmallen the text
+#	* emsmallen the text (parameterized?)
 #	* validator: better way to denote keys that belong to dict, and keys that belong to validator
 #	* registration marks?
 #	* wide svg's via overlap
@@ -50,6 +49,9 @@ from SliceRender import slicesToSVG
 #	* progress feedback when getting lots of elevations
 
 # DONE:
+#	* render every nth slice (slice step)
+#	* change material "width" to "thickness" (less confustion with svg width)
+#	* echo (optional) "description" key from slice job file
 #	* notches in bottom option?
 #	* put slice numbers in output svg names
 # 	* config:input: validate inputs / range checks - sorta doing this with validator
@@ -96,7 +98,8 @@ default_app_config = {
 	"height_map_filename" : "height_map.json",
 	"report_timings" : True,
 	"no_output" : False,
-	"material_width_inches" : None
+	"material_thickness_inches" : None,
+	"slice_step" : 1	# how far slice index steps after each slice, allows "skipping" slices (i.e. 1=> every slice, 2=>every other slice, 3=>every third slice)
 }
 
 #  -----------------------------------------------------------------
@@ -151,18 +154,20 @@ def loadJobFile(job_filename):
 		log.echo(f"loading job file: {job_filename}")
 		with open(job_filename, "rt") as slice_job_file_obj:
 			raw_data = slice_job_file_obj.read()
-			main_obj = jsons.loads(raw_data)
+			# main_obj = jsons.loads(raw_data)
+			return_dict = jsons.loads(raw_data)
 
+			# validation
 			# pick pieces out of main obj
-			return_dict = {}
+			# return_dict = {}
 			# slice job is required
-			if not SliceJobFileKeys.SliceJob in main_obj:
+			if not SliceJobFileKeys.SliceJob in return_dict: # main_obj:
 				return (False, f"job file did not contain slice config key '{SliceJobFileKeys.SliceJob}'")
 		
-			return_dict[SliceJobFileKeys.SliceJob] = main_obj[SliceJobFileKeys.SliceJob]
+			# return_dict[SliceJobFileKeys.SliceJob] = main_obj[SliceJobFileKeys.SliceJob]
 			# svg is actually optional
-			if SliceJobFileKeys.SVG in main_obj:
-				return_dict[SliceJobFileKeys.SVG] = main_obj[SliceJobFileKeys.SVG]
+			# if SliceJobFileKeys.SVG in main_obj:
+			# 	return_dict[SliceJobFileKeys.SVG] = main_obj[SliceJobFileKeys.SVG]
 
 			return (True, return_dict)
 
@@ -185,7 +190,9 @@ def logSectionHeader(section_name:str):
 
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
+#  ----------------------------------------------------------------------------
 # MAIN (FUNC)
+#  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 #  ----------------------------------------------------------------------------
 def main_func():
@@ -202,8 +209,9 @@ def main_func():
 	# command line parsing
 	parser = argparse.ArgumentParser()
 	parser.add_argument("job_file", help="json file specifying an earth slice job") #refine this later
-	parser.add_argument("--material_width_inches", help="enter width of material used for slices, will report\
+	parser.add_argument("--material_thickness_inches", help="thickness of material used for slices, will report\
 		     number of slices needed based on size of modeled area")
+	parser.add_argument("--slice_step", help="index step between slices (i.e. 1=>output every slice, 2=>output every other slice, 3=>output every third slice)")
 	parser.add_argument("--no_output", help="load slice job and report its config, then exit", action="store_true")
 
 	args = parser.parse_args()
@@ -212,14 +220,18 @@ def main_func():
 		main_config["slice_job_filename"] = args.job_file
 
 	main_config["no_output"] = args.no_output
-	main_config["material_width_inches"] = None if not args.material_width_inches else float(args.material_width_inches)
+	main_config["material_thickness_inches"] = None if not args.material_thickness_inches else float(args.material_thickness_inches)
+	if args.slice_step:
+		main_config["slice_step"] = int(args.slice_step)
 
 	log.todo("check for silent mode, turn off log channels")
 
 	# --------------------------------------------------------------------------
 	# print banner
 	log.echo()
+	log.echo(f"========================================================================================")
 	log.echo(f"==================== TopoVSlicer-Py ({MajorVersion}.{MinorVersion}) ====================")
+	log.echo(f"========================================================================================")
 	log.echo()
 
 	log.echo("main config:")
@@ -238,6 +250,13 @@ def main_func():
 	job_file_objects = load_job_file_result[1]
 
 	main_config["job_file_path"] = os.path.dirname(main_config["slice_job_filename"])
+
+	# --------------------------------------------------------------------------
+	# echo slice job description key (if found)
+	if "description" in job_file_objects:
+		log.echo()
+		log.echo(f"description: {job_file_objects['description']}")
+		log.echo()
 
 	# --------------------------------------------------------------------------
 	# get slice job config
@@ -278,7 +297,7 @@ def main_func():
 
 	# ---------------------------------------------------------------------------
 	# create main slice job
-	main_slice_job = SliceJob(main_slice_job_config)
+	main_slice_job = SliceJob(main_slice_job_config, main_config["slice_step"])
 
 	# ---------------------------------------------------------------------------
 	# scale info
@@ -294,18 +313,20 @@ def main_func():
 		log.echo(f"no svg config given, unable to determine map scale")
 
 	# ---------------------------------------------------------------------------
-	# material width to number of slices calculator
-	if main_config["material_width_inches"]:
-		logSectionHeader("material width => number of slices")
+	# material width/thickness to number of slices calculator
+	if main_config["material_thickness_inches"]:
+		logSectionHeader("material thickness => number of slices")
 		if not main_svg_config:
-			quitWithError("material_width_inches option requires an svg config, but no svg config was found in job file")
+			quitWithError("material_thickness_inches option requires an svg config, but no svg config was found in job file")
 
-		log.echo(f"specified material width (inches): {main_config['material_width_inches']}")
+		log.echo(f"specified material thickness (inches): {main_config['material_thickness_inches']}")
 		log.echo(f"mapped width perpendicular to slices (feet): {main_slice_job.sliceWidthFeet()}")
-		num_slices_of_material = int(main_slice_job.sliceWidthFeet() / (main_config["material_width_inches"] * scale_feet_per_inch))
+		num_slices_of_material = int(main_slice_job.sliceWidthFeet() / (main_config["material_thickness_inches"] * scale_feet_per_inch))
 		log.echo(f"results in {num_slices_of_material} layers of material to match mapped width")
 		linear_feet_material = (main_svg_config.slice_width_inches * num_slices_of_material) / 12.0
 		log.echo(f"which comes to {linear_feet_material} linear feet of material")
+		log.echo(f"(exiting)")
+		quit()
 
 	# --------------------------------------------------------------------------
 	# step out here if only wanted job file report

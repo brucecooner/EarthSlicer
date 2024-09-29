@@ -386,16 +386,6 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 		# down
 		path.draw(nx - nwidth, ny)
 
-	# notches ?
-	# if notch_count:
-	# 	current_notch_center = cur_x - notch_step
-	# 	for cur_notch in range(notch_count):
-	# 		cur_x = current_notch_center + (notch_width / 2.0) # slight step "right"
-	# 		current_notch_center -= notch_step
-	# 		# draw to next notch...
-	# 		slice_path.draw(cur_x, start_y)
-	# 		notchAt(cur_x, start_y, notch_depth, notch_width, slice_path)
-
 	if notch_count:
 		for cur_notch_center in notch_centers:
 			cur_x = start_x + cur_notch_center + notch_half_width
