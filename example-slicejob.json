@@ -1,0 +1,31 @@
+{
+	"script" : "EarthSlicer.py",
+	"description": "Sierra Estrella Mtns. Goodyear, AZ",
+	"slices" : {
+		"slice_direction" : "WestEast",
+		"number_of_elevations" : 150,
+		"number_of_slices" : 154,
+		"north_edge" : 33.341894,
+		"west_edge" : -112.362431,
+		"south_edge" : 33.116946,
+		"east_edge" :  -112.140831
+	},
+	"svg": {
+		"slice_width_inches" : 14.0,
+		"vertical_scale" : 1.75,
+		"svg_base_filename" : "Estrellas2",
+		"smoothed" : false,
+		"layers_grid_min_x" : 0.0,
+		"layers_grid_max_x" : 30.0,
+		"layers_grid_min_y" : 0.0,
+		"layers_grid_max_y" : 20.0,
+		"base_inches" : 0.5,
+		"bottom_notch_config" : {
+			"count" : 4,
+			"width" : 0.09,
+			"depth" : 0.125,
+			"distance_from_ends" : 1.0 }
+	}
+}
+
+

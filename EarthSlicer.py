@@ -28,9 +28,12 @@ from SliceRender import slicesToSVG
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
+#	* overlay mode (all same x,y)
+#	* text placement configuration options (optional arrow/direction?)
+#	* output config onto svg
 #	* allow parameter overriding any config option?
 #	* add coords to output slices?
-#	* allow material width inches to override configured number of slices?
+#	* allow material thickness inches option to calculate/override configured number of slices?
 #	* emsmallen the text (parameterized?)
 #	* validator: better way to denote keys that belong to dict, and keys that belong to validator
 #	* registration marks?
@@ -50,7 +53,7 @@ from SliceRender import slicesToSVG
 
 # DONE:
 #	* render every nth slice (slice step)
-#	* change material "width" to "thickness" (less confustion with svg width)
+#	* change material "width" to "thickness" (less confusion with svg width)
 #	* echo (optional) "description" key from slice job file
 #	* notches in bottom option?
 #	* put slice numbers in output svg names
