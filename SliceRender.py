@@ -250,6 +250,8 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	# notch config
 	notch_count = None
 	notch_centers = None
+	notch_width = 0.0
+	notch_depth = 0.0
 	if hasattr(config, "bottom_notch_config"):
 		notch_count = config.bottom_notch_config["count"]
 		notch_dist_from_ends = dict.get(config.bottom_notch_config, "distance_from_ends", 0)
@@ -402,27 +404,40 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 		c2_path.close()
 		points_path.close()
 
+	# add arrows / direction indicator
+	# eh, arrow/direction not really adding much
+	arrow_path = None
+	dir_path = None
 	# add arrow pointing left
-	arrow_height = (config.base_inches) * 0.25
-	arrow_length = arrow_height * 4
-	arrow_x = start_x + 0.5 # this assumes we've got 0.5 inches to work with
-	arrow_y = start_y - config.base_inches * 0.5
-	arrow_path = renderLeftArrow(arrow_x, arrow_y, arrow_length, 0.25, 0.25)
-	arrow_path.setColor(arrow_color_string)
+	# arrow_height = (config.base_inches) * 0.25
+	# arrow_length = arrow_height * 4
+	# arrow_x = start_x + 0.5 # this assumes we've got 0.5 inches to work with
+	# arrow_y = start_y - config.base_inches * 0.5
+	# arrow_path = renderLeftArrow(arrow_x, arrow_y, arrow_length, 0.25, 0.25)
+	# arrow_path.setColor(arrow_color_string)
 
-	text_height = config.base_inches * 0.5
+	# text_height = config.base_inches * 0.5
+	# text_width = text_height * 0.5
+	# text_spacing = text_width * 0.5
+	# text_start_x = arrow_x + arrow_length + text_spacing
+	# text_start_y = start_y - (config.base_inches * 0.25)
+
+	# renderLetterFunc = renderN
+	# if slice.slice_direction == SliceDirection.WestEast:
+	# 	renderLetterFunc = renderW
+
+	# dir_path = renderLetterFunc(text_start_x, text_start_y, text_width, text_height, text_color_string)
+
+	# text_start_x += (text_width + text_spacing) * 2
+
+	# add slice number
+	text_start_x = start_x + 0.5
+	text_height = min(config.base_inches * 0.5, 0.1)
 	text_width = text_height * 0.5
+	# TODO: figure out better text placement/config
+	# text_start_y = start_y - notch_depth - 0.1 if notch_depth else start_y - 0.1 # (config.base_inches * 0.25)
+	text_start_y = start_y - 0.1 # (config.base_inches * 0.25)
 	text_spacing = text_width * 0.5
-	text_start_x = arrow_x + arrow_length + text_spacing
-	text_start_y = start_y - (config.base_inches * 0.25)
-
-	renderLetterFunc = renderN
-	if slice.slice_direction == SliceDirection.WestEast:
-		renderLetterFunc = renderW
-
-	dir_path = renderLetterFunc(text_start_x, text_start_y, text_width, text_height, text_color_string)
-
-	text_start_x += (text_width + text_spacing) * 2
 
 	# note: text is green
 	slice_index_text = ""
@@ -437,8 +452,10 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	# all paths in same (non layer) group
 	slice_layer_path_group = InkscapeGroup(f"p_slice_{slice.slice_index}")
 	slice_layer_path_group.addNode(slice_path)
-	slice_layer_path_group.addNode(arrow_path)
-	slice_layer_path_group.addNode(dir_path)
+	if arrow_path:
+		slice_layer_path_group.addNode(arrow_path)
+	if dir_path:
+		slice_layer_path_group.addNode(dir_path)
 	for cur_path in num_paths:
 		slice_layer_path_group.addNode(cur_path)
 

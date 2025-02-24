@@ -28,7 +28,8 @@ from SliceRender import slicesToSVG
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-#	* overlay mode (all same x,y)
+#	* SVGConfig use json schema
+#	* overlay mode (all slices at same svg x,y)
 #	* text placement configuration options (optional arrow/direction?)
 #	* output config onto svg
 #	* allow parameter overriding any config option?
@@ -52,6 +53,7 @@ from SliceRender import slicesToSVG
 #	* progress feedback when getting lots of elevations
 
 # DONE:
+#	* SliceJobConfig -> use json schema
 #	* render every nth slice (slice step)
 #	* change material "width" to "thickness" (less confusion with svg width)
 #	* echo (optional) "description" key from slice job file
@@ -153,6 +155,7 @@ async def getElevationsAsync(slice_job:SliceJob, height_map:HeightMap):
 # returns ( True/False, error message on failure|job file bits)
 # how does this know the key names of parts of the job?
 def loadJobFile(job_filename):
+
 	if os.path.isfile(job_filename):
 		log.echo(f"loading job file: {job_filename}")
 		with open(job_filename, "rt") as slice_job_file_obj:
@@ -162,15 +165,9 @@ def loadJobFile(job_filename):
 
 			# validation
 			# pick pieces out of main obj
-			# return_dict = {}
 			# slice job is required
 			if not SliceJobFileKeys.SliceJob in return_dict: # main_obj:
 				return (False, f"job file did not contain slice config key '{SliceJobFileKeys.SliceJob}'")
-		
-			# return_dict[SliceJobFileKeys.SliceJob] = main_obj[SliceJobFileKeys.SliceJob]
-			# svg is actually optional
-			# if SliceJobFileKeys.SVG in main_obj:
-			# 	return_dict[SliceJobFileKeys.SVG] = main_obj[SliceJobFileKeys.SVG]
 
 			return (True, return_dict)
 
@@ -252,7 +249,7 @@ def main_func():
 
 	job_file_objects = load_job_file_result[1]
 
-	main_config["job_file_path"] = os.path.dirname(main_config["slice_job_filename"])
+	main_config["job_file_path"] = os.path.dirname(os.path.abspath(main_config["slice_job_filename"]))
 
 	# --------------------------------------------------------------------------
 	# echo slice job description key (if found)
@@ -285,18 +282,9 @@ def main_func():
 		log.echo("no svg config specified")
 
 	# --------------------------------------------------------------------------
-	# calculate/verify svg output location
+	# send svg files to same location as config file
 	if main_svg_config:
-		svg_output_path = os.path.dirname(main_svg_config.svg_base_filename)	# extract path from svg output name
-		svg_output_full_path = os.path.join(main_config["job_file_path"], svg_output_path)
-
-		if os.path.exists(svg_output_full_path):
-			main_svg_config.addProperties( {"base_path": main_config["job_file_path"] } )
-
-			log.echo(f"svg config:")
-			log.echo(f"{main_svg_config}")
-		else:
-			quitWithError(f"specified svg output path does not exist: {svg_output_full_path}{os.sep}")
+		main_svg_config.addProperties({"base_path": main_config["job_file_path"] } )
 
 	# ---------------------------------------------------------------------------
 	# create main slice job

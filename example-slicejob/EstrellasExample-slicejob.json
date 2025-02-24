@@ -1,10 +1,10 @@
 {
 	"script" : "EarthSlicer.py",
-	"description": "Sierra Estrella Mtns. Goodyear, AZ",
+	"description": "lo res example slice config for Sierra Estrella Mtns. west of Goodyear, AZ",
 	"slices" : {
 		"slice_direction" : "WestEast",
-		"number_of_elevations" : 150,
-		"number_of_slices" : 154,
+		"number_of_elevations" : 100,
+		"number_of_slices" : 50,
 		"north_edge" : 33.341894,
 		"west_edge" : -112.362431,
 		"south_edge" : 33.116946,
@@ -13,7 +13,7 @@
 	"svg": {
 		"slice_width_inches" : 14.0,
 		"vertical_scale" : 1.75,
-		"svg_base_filename" : "Estrellas2",
+		"svg_base_filename" : "EstrellasExample",
 		"smoothed" : false,
 		"layers_grid_min_x" : 0.0,
 		"layers_grid_max_x" : 30.0,
