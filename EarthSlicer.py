@@ -28,6 +28,7 @@ from SliceRender import slicesToSVG
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
+#	* command line param to spit display/produce a job file?
 #	* overlay mode (all slices at same svg x,y)
 #	* text placement configuration options (optional arrow/direction?)
 #	* output config onto svg
