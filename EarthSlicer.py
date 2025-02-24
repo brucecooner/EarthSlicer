@@ -274,7 +274,6 @@ def main_func():
 	if SliceJobFileKeys.SVG in job_file_objects:
 		try:
 			main_svg_config = SVGConfig(job_file_objects[SliceJobFileKeys.SVG])
-			main_svg_config.addProperties({"layers_grid_x_spacing":0.5, "layers_grid_y_spacing":0.25})
 
 		except Exception as exc:
 			quitWithError(f"{exc}")
@@ -284,7 +283,7 @@ def main_func():
 	# --------------------------------------------------------------------------
 	# send svg files to same location as config file
 	if main_svg_config:
-		main_svg_config.addProperties({"base_path": main_config["job_file_path"] } )
+		main_svg_config["base_path"] = main_config["job_file_path"]
 
 	# ---------------------------------------------------------------------------
 	# create main slice job
@@ -384,7 +383,7 @@ def main_func():
 
 		direction_abbr = "NS" if main_slice_job.config.slice_direction == SliceDirection.NorthSouth else "WE"
 		slice_svg_width = f"{main_svg_config.slice_width_inches}in"
-		main_svg_config.addProperties({"filename_info_string" : direction_abbr + "-" + slice_svg_width})
+		main_svg_config["filename_info_string"] = direction_abbr + "-" + slice_svg_width
 
 		slicesToSVG(main_slice_job.slices, main_svg_config)
 

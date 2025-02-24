@@ -252,7 +252,7 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	notch_centers = None
 	notch_width = 0.0
 	notch_depth = 0.0
-	if hasattr(config, "bottom_notch_config"):
+	if config.bottom_notch_config:
 		notch_count = config.bottom_notch_config["count"]
 		notch_dist_from_ends = dict.get(config.bottom_notch_config, "distance_from_ends", 0)
 

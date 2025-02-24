@@ -1,6 +1,6 @@
 # configuration of a slice job
-# from support.ClassFromDict import ClassFromDict
-from support.ValidateDict import validateDict, checkValidator, validateDict_PostValidateFnKey, validateIsPositive
+from jsonschema import Draft7Validator
+
 from support.LogChannels import log
 from unitsSupport import *
 from Slice import SliceDirection
@@ -19,14 +19,10 @@ class SliceJobConfig():
 
 		# just throw an exception, if somebody needs it they can catch it
 		SliceJobConfig.validateConfig(slice_config, True)
-		self.fromDict(slice_config)
 
-	# -------------------------------------------------------------------------------------
-	def fromDict(self, slice_config:dict):
-		SliceJobConfig.validateConfig(slice_config, throw_on_fail=True)
-
-		for cur_key in SliceJobConfig.getConfigSchema()["required"]:
-			self[cur_key] =  slice_config[cur_key]
+		for cur_key in SliceJobConfig.getConfigSchema()["properties"]:
+			if cur_key in slice_config:
+				self[cur_key] =  slice_config[cur_key]
 
 		#TODO: specially handle slice_direction here...
 		self.slice_direction = SliceDirection.toSliceDirection(self.slice_direction)
@@ -34,6 +30,7 @@ class SliceJobConfig():
 		self.repr_keys = [cur_val_key for cur_val_key in slice_config.keys()]
 		self.calcMetrics()
 
+	# these allow me to add class properties via brackets
 	# ------------------------------------------
 	def __getitem__(self, item):
 			return getattr(self, item)
@@ -104,8 +101,6 @@ class SliceJobConfig():
 	# -------------------------------------------------------------------------------------
 	@staticmethod
 	def validateConfig(slice_config: dict, throw_on_fail:bool = True) -> bool:
-		from jsonschema import Draft7Validator
-
 		log.sjc(f"validateConfig(): {slice_config}")
 
 		validation_result = True
