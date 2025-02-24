@@ -28,11 +28,10 @@ from SliceRender import slicesToSVG
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-#	* SVGConfig use json schema
 #	* overlay mode (all slices at same svg x,y)
 #	* text placement configuration options (optional arrow/direction?)
 #	* output config onto svg
-#	* allow parameter overriding any config option?
+#	* allow command line parameter overriding any config option?
 #	* add coords to output slices?
 #	* allow material thickness inches option to calculate/override configured number of slices?
 #	* emsmallen the text (parameterized?)
@@ -53,6 +52,7 @@ from SliceRender import slicesToSVG
 #	* progress feedback when getting lots of elevations
 
 # DONE:
+#	* SVGConfig use json schema
 #	* SliceJobConfig -> use json schema
 #	* render every nth slice (slice step)
 #	* change material "width" to "thickness" (less confusion with svg width)
