@@ -8,6 +8,7 @@ class SVGConfig():
 		SVGConfig.validateConfig(svg_config, True)
 
 		self.bottom_notch_config = None
+		self.grid_config = None
 
 		for cur_key in SVGConfig.getSchema()["properties"]:
 			if cur_key in svg_config:
@@ -47,11 +48,17 @@ class SVGConfig():
 				"vertical_scale" : { "type" : "number" },
 				"svg_base_filename" : { "type" : "string"},
 				"smoothed" : { "type" : "boolean" },
-				"layers_grid_min_x" : { "type" : "number" },
-				"layers_grid_max_x" : { "type" : "number" },
-				"layers_grid_min_y" : { "type" : "number" },
-				"layers_grid_max_y" : { "type" : "number" },
 				"base_inches" : { "type" : "number"},
+				"grid_config" : {
+					"type" : "object",
+					"properties" : {
+						"layers_grid_min_x" : { "type" : "number" },
+						"layers_grid_max_x" : { "type" : "number" },
+						"layers_grid_min_y" : { "type" : "number" },
+						"layers_grid_max_y" : { "type" : "number" }
+					},
+					"required" : ["layers_grid_min_x", "layers_grid_max_x", "layers_grid_min_y", "layers_grid_max_y"]
+				},
 				"bottom_notch_config" :
 					{
 					"type" : "object",
@@ -60,18 +67,15 @@ class SVGConfig():
 						"width" : { "type" : "number" },
 						"depth" : { "type" : "number" },
 						"distance_from_ends" : { "type" : "number" }
-					}
-					}
+					},
+					"required" : ["count", "width", "depth", "distance_from_ends"]
+				}
 			},
 			"required" : [
 				"slice_width_inches",
 				"vertical_scale",
 				"svg_base_filename",
 				"smoothed",
-				"layers_grid_min_x",
-				"layers_grid_max_x",
-				"layers_grid_min_y",
-				"layers_grid_max_y",
 				"base_inches"
 			]
 		}

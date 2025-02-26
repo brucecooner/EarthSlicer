@@ -494,23 +494,21 @@ def slicesToGridRow(slices, min_global_elevation, config:SVGConfig):
 
 # -----------------------------------------------------------------------------------------
 def slicesToSVG(slices:list[Slice], config:SVGConfig):
-
-	# extend the svg config a bit...TODO: this somewhere else
-	# moved to main
-	# config.addProperties({"layers_grid_x_spacing":0.5, "layers_grid_y_spacing":0.25})
-
 	# have to know the minimum world elevation in the job as every slice has to be adjusted in screen space for it
 	min_global_elevation = min([cur_slice.minimum_elevation for cur_slice in slices])
-	grid_width = config.layers_grid_max_x - config.layers_grid_min_x
-	# num_slices_per_row = min(1, grid_width / (config.slice_width_inches + grid_row_horizontal_spacing))
-	num_slices_per_row = ceil(grid_width / (config.slice_width_inches + config.layers_grid_x_spacing))
+
+	# set up to do "overlay" mode, where all slices appear at 0,0
+	# grid_width = None
+	num_slices_per_row = 1
 	row_results = []
 
-	
+	# calculate grid dims only if grid_config specified
+	if config.grid_config:
+		grid_width = config.grid_config["layers_grid_max_x"] - config.grid_config["layers_grid_min_x"]
+		num_slices_per_row = ceil(grid_width / (config.slice_width_inches + config.layers_grid_x_spacing))
 
 	log.slicesToSVG(f"slicesToSVG() num slices: {len(slices)}")
 	log.slicesToSVG(f"min_global_elevation:{min_global_elevation}")
-	log.slicesToSVG(f"grid_width:{grid_width}")
 	log.slicesToSVG(f"num_slices_per_row:{num_slices_per_row}")
 
 	cur_slice_index = 0
@@ -546,16 +544,19 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 	cur_file_start_slice_index = 0
 	cur_file_end_slice_index = 0
 
+	total_y_transform = 0.0
+
 	# move rows into grids until they're all gone
 	while cur_row_index < len(row_results):
 		log.slicesToSVG(f"cur_row_index:{cur_row_index}")
 		cur_row_result = row_results[cur_row_index]
 
-		# add this row's y transform
+		# if rendering grid, add this row's y transform
 		# rows were all rendered at y=0, so we want to transform this row down onscreen, increasing y, by its maximum Y coordinate (stored in result[1])
 		# BUT...the slice was rendered upward in screen space, which means it went towards negative
 		# coordinates, but we want to move it DOWN in screen space, or in a positive y direction, so reverse the min y
-		total_y_transform += (-cur_row_result[0] + (0 if cur_row_index == 0 else config.layers_grid_y_spacing))
+		if config.grid_config:
+			total_y_transform += (-cur_row_result[0] + (0 if cur_row_index == 0 else config.layers_grid_y_spacing))
 
 		for cur_row_slice in cur_row_result[1]:
 			log.slicesToSVG(f"adding row slice to svg...")
@@ -565,12 +566,21 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 			cur_svg.addNode(cur_row_slice)
 
 		# update numbers for added row
-		slices_in_current_svg += num_slices_per_row
-		# cur_file_end_slice_index += num_slices_per_row	# subtract one because zero based
+		slices_in_current_svg += len(cur_row_result[1])
+
 		log.slicesToSVG(f"slices_in_current_svg: {slices_in_current_svg}")
 
+		# time to write file?
+		write_current_svg = False
+
+		if config.grid_config:
+			write_current_svg = (total_y_transform >= config.grid_config["layers_grid_max_y"]) or cur_row_index >= (len(row_results) - 1)
+		else:
+			# in non-grid mode, run to end then write
+			write_current_svg = cur_row_index >= (len(row_results) - 1)
+
 		# are we beyond max_y now? or at last row?
-		if (total_y_transform >= config.layers_grid_max_y) or cur_row_index >= (len(row_results)-1):
+		if write_current_svg: # (total_y_transform >= config.layers_grid_max_y) or cur_row_index >= (len(row_results)-1):
 			# write current svg
 			cur_file_end_slice_index = cur_file_start_slice_index + slices_in_current_svg - 1
 

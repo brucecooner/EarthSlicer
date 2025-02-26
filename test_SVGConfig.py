@@ -8,11 +8,13 @@ default_config_dict = {
 	"vertical_scale" : 1.75,
 	"svg_base_filename" : "test_base_filename",
 	"smoothed" : False,
-	"layers_grid_min_x" : 0.0,
-	"layers_grid_max_x" : 30.0,
-	"layers_grid_min_y" : 0.0,
-	"layers_grid_max_y" : 20.0,
 	"base_inches" : 0.5,
+	"grid_config" : {
+		"layers_grid_min_x" : 0.0,
+		"layers_grid_max_x" : 30.0,
+		"layers_grid_min_y" : 0.0,
+		"layers_grid_max_y" : 20.0
+	},
 	"bottom_notch_config" : {
 		"count" : 4,
 		"width" : 0.09,
@@ -49,11 +51,13 @@ class TestSVGConfig:
 			"vertical_scale" : 1.75,
 			"svg_base_filename" : "test_base_filename",
 			"smoothed" : False,
-			# "layers_grid_min_x" : 0.0,
-			"layers_grid_max_x" : 30.0,
-			"layers_grid_min_y" : 0.0,
-			"layers_grid_max_y" : 20.0,
-			"base_inches" : 0.5,
+			# "base_inches" : 0.5,
+			"grid_config" : {
+				"layers_grid_min_x" : 0.0,
+				"layers_grid_max_x" : 30.0,
+				"layers_grid_min_y" : 0.0,
+				"layers_grid_max_y" : 20.0
+			},
 			"bottom_notch_config" : {
 				"count" : 4,
 				"width" : 0.09,
@@ -66,19 +70,53 @@ class TestSVGConfig:
 
 	# --------------------------------------------------------------------------
 	def test_noBottomNotchConfigBecomesNone(self):
-		# note: missing bottom notch should be allowed
 		config_dict = {
 			"slice_width_inches" : 14.0,
 			"vertical_scale" : 1.75,
 			"svg_base_filename" : "test_base_filename",
+			"base_inches" : 0.5,
 			"smoothed" : False,
-			"layers_grid_min_x" : 0.0,
-			"layers_grid_max_x" : 30.0,
-			"layers_grid_min_y" : 0.0,
-			"layers_grid_max_y" : 20.0,
-			"base_inches" : 0.5
+			"grid_config" : {
+				"layers_grid_min_x" : 0.0,
+				"layers_grid_max_x" : 30.0,
+				"layers_grid_min_y" : 0.0,
+				"layers_grid_max_y" : 20.0
+			}
 		}
 
 		test_config = SVGConfig(config_dict)
 
 		assert test_config.bottom_notch_config == None
+
+	# --------------------------------------------------------------------------
+	def test_badGridConfig(self):
+		config_dict = {
+			"slice_width_inches" : 14.0,
+			"vertical_scale" : 1.75,
+			"svg_base_filename" : "test_base_filename",
+			"smoothed" : False,
+			"base_inches" : 0.5,
+			"grid_config" : {
+				# "layers_grid_min_x" : 0.0,
+				"layers_grid_max_x" : 30.0,
+				"layers_grid_min_y" : 0.0,
+				"layers_grid_max_y" : 20.0
+			}
+		}
+
+		with pytest.raises(Exception):
+			test_config = SVGConfig(config_dict)
+
+	# --------------------------------------------------------------------------
+	def test_noGridConfigBecomesNone(self):
+		config_dict = {
+			"slice_width_inches" : 14.0,
+			"vertical_scale" : 1.75,
+			"svg_base_filename" : "test_base_filename",
+			"base_inches" : 0.5,
+			"smoothed" : False
+		}
+
+		test_config = SVGConfig(config_dict)
+
+		assert test_config.grid_config == None

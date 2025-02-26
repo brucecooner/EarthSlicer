@@ -20,6 +20,12 @@
 		"layers_grid_min_y" : 0.0,
 		"layers_grid_max_y" : 20.0,
 		"base_inches" : 0.5,
+		"grid_config" : {
+			"layers_grid_min_x" : 0.0,
+			"layers_grid_max_x" : 30.0,
+			"layers_grid_min_y" : 0.0,
+			"layers_grid_max_y" : 14.0
+		},
 		"bottom_notch_config" : {
 			"count" : 4,
 			"width" : 0.09,
