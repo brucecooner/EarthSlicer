@@ -85,7 +85,7 @@ class InkscapePath:
 		self.path_text += " Z"
 
 	def style_text(self):
-		return f'style="opacity:0.981447;fill:none;fill-opacity:0.992157;stroke:#{self.color_string};stroke-width:0.5"'
+		return f'style="opacity:0.981447;fill:#CCCCCC;fill-opacity:0.992157;stroke:#{self.color_string};stroke-width:0.1"'
 
 	#  -----------------------------
 	def write(self, file_obj):
