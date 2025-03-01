@@ -22,7 +22,7 @@ from Slice import SliceDirection, Slice
 #	* sort out vertical coordinate chaos (sorta done I guess)
 
 log.addChannel("svg", "svg")
-log.setChannel("svg", True)
+log.setChannel("svg", False)
 log.addChannel("svggrid", "svgg")
 log.setChannel("svggrid", False)
 
@@ -57,22 +57,24 @@ def renderCross(x, y, width, height, path):
 
 #  -----------------------------------------------------------------
 # start_x,start_y specifies tip of arrow
-def renderLeftArrow(start_x, start_y, total_length, tip_fraction, tip_height_fraction)-> tuple:
-	tip_width = total_length * tip_fraction
-	tip_back_x = start_x + tip_width
-	tip_top_y = start_y - ((total_length * tip_height_fraction)/2)
-	tip_bottom_y = start_y + ((total_length * tip_height_fraction)/2)
+def renderLeftArrow(start_x, start_y, tip_width, tip_height, body_width)-> tuple:
+	""" renders left pointing arrow with tip at start_x,start_y  """
+	# tip_width = total_length * tip_fraction
+	# tip_back_x = start_x + (total_length * tip_fraction)
+	# tip_top_y = start_y - ((total_length * tip_height_fraction)/2)
+	# tip_bottom_y = start_y + ((total_length * tip_height_fraction)/2)
 
+	# draw tip
 	arrow_path = InkscapePath(start_x, start_y)
-	arrow_path.draw(tip_back_x, tip_top_y)
-	arrow_path.draw(tip_back_x, tip_top_y)
-	arrow_path.draw(tip_back_x, tip_bottom_y)
+	arrow_path.draw(start_x + tip_width, start_y - (tip_height / 2.0))
+	arrow_path.draw(start_x + tip_width, start_y + (tip_height / 2.0))
 	arrow_path.draw(start_x, start_y)
 
-	arrow_path.move(tip_back_x, start_y)
-	arrow_path.draw(start_x + total_length, start_y)
+	# draw body
+	arrow_path.move(start_x + tip_width, start_y)
+	arrow_path.draw(start_x + tip_width + body_width, start_y)
 
-	return (arrow_path, total_length)
+	return (arrow_path, tip_width + body_width)
 
 #  -----------------------------------------------------------------
 # start_x,start_y = coordinate of lower left corner
@@ -259,7 +261,6 @@ def renderNumString(	int_str: str,
 		cur_render_func = render_funcs[cur_char]
 		path, used_width = cur_render_func(cur_x, start_y, width, height)
 		if path:
-			print(f"cur_char {cur_char} used width {used_width}")
 			path.setColor(color)
 			paths.append(path)
 		cur_x += used_width + spacing
@@ -437,7 +438,7 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	# -----------
 	# draw bottom
 
-	# draws not going to "left" (decreasing x)
+	# draws notch going to "left" (decreasing x)
 	def notchAt(nx, ny, ndepth, nwidth, path):
 		# up
 		path.draw(nx, ny - ndepth)
@@ -462,73 +463,57 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 		c2_path.close()
 		points_path.close()
 
-	# add arrows / direction indicator
-	# eh, arrow/direction not really adding much
-	arrow_path = None
-	dir_path = None
-	# add arrow pointing left
-	# arrow_height = (config.base_inches) * 0.25
-	# arrow_length = arrow_height * 4
-	# arrow_x = start_x + 0.5 # this assumes we've got 0.5 inches to work with
-	# arrow_y = start_y - config.base_inches * 0.5
-	# arrow_path = renderLeftArrow(arrow_x, arrow_y, arrow_length, 0.25, 0.25)
-	# arrow_path.setColor(arrow_color_string)
+	# all paths go in same (non layer) group
+	slice_layer_path_group = InkscapeGroup(f"p_slice_{slice.slice_index}")
+	slice_layer_path_group.addNode(slice_path)
 
-	# text_height = config.base_inches * 0.5
-	# text_width = text_height * 0.5
-	# text_spacing = text_width * 0.5
-	# text_start_x = arrow_x + arrow_length + text_spacing
-	# text_start_y = start_y - (config.base_inches * 0.25)
+	# ----- render info on slice -----
+	info_string = ""
 
-	# renderLetterFunc = renderN
-	# if slice.slice_direction == SliceDirection.WestEast:
-	# 	renderLetterFunc = renderW
-
-	# dir_path = renderLetterFunc(text_start_x, text_start_y, text_width, text_height, text_color_string)
-
-	# text_start_x += (text_width + text_spacing) * 2
-
-	# add slice number
-	text_start_x = start_x + 0.5
+	# note: text height is scaled by base_inches
 	text_height = min(config.base_inches * 0.5, 0.1)
 	text_width = text_height * 0.5
 	# TODO: figure out better text placement/config
-	# text_start_y = start_y - notch_depth - 0.1 if notch_depth else start_y - 0.1 # (config.base_inches * 0.25)
-	text_start_y = start_y - 0.1 # (config.base_inches * 0.25)
-	text_spacing = text_width * 0.5
+	text_spacing = text_width * 0.5	# space between digits
 
-	# note: text is green
+	# current rendering coords (x increases as more info is rendered)
+	current_x = start_x + (config.base_inches * 2.0)
+	current_y = start_y - 0.1
+
+	# --- arrow ---
+	arrow_y = current_y - (text_height / 2.0)
+	arrow_path, arrow_width = renderLeftArrow(current_x, arrow_y, text_height * 0.3, text_height * 0.3, text_width)
+	arrow_path.setColor(arrow_color_string)
+
+	current_x += arrow_width + text_spacing
+
+	slice_layer_path_group.addNode(arrow_path)
+
+	# --- direction ---
+	if slice.slice_direction == SliceDirection.NorthSouth:
+		info_string += "N "
+	elif slice.slice_direction == SliceDirection.WestEast:
+		info_string += "W "
+
+	# --- slice index ---
 	slice_index_text = ""
 	# leading zeroes?
 	if slice.slice_index < 10:
 		slice_index_text += "00"
 	elif slice.slice_index < 100:
 		slice_index_text += "0"
-	slice_index_text += f"{slice.slice_index}"
-	num_paths, index_string_width = renderNumString(slice_index_text, text_start_x, text_start_y, text_width, text_height, text_spacing, text_color_string)
+	slice_index_text += f"{slice.slice_index}  "
+	info_string += slice_index_text
 
-	coord_paths = None
-	coordinate = slice.coordinate()
-
-	if coordinate:
+	# --- slice coordinate ---
+	if config.include_coordinates:
+		coordinate = slice.coordinate()
 		coordinate = floatToPrecision(coordinate, 4)
-		text_start_x += index_string_width + (text_spacing * 2)	# move right a little
-		coord_text = f"{coordinate}"
-		coord_paths, coord_string_width = renderNumString(coord_text, text_start_x, text_start_y, text_width, text_height, text_spacing, text_color_string)
+		info_string += f"{coordinate}{slice.compassDir()}"
 
-
-	# all paths in same (non layer) group
-	slice_layer_path_group = InkscapeGroup(f"p_slice_{slice.slice_index}")
-	slice_layer_path_group.addNode(slice_path)
-	if arrow_path:
-		slice_layer_path_group.addNode(arrow_path)
-	if dir_path:
-		slice_layer_path_group.addNode(dir_path)
-	for cur_path in num_paths:
+	info_string_paths, info_string_width = renderNumString(info_string, current_x, current_y, text_width, text_height, text_spacing, text_color_string)
+	for cur_path in info_string_paths:
 		slice_layer_path_group.addNode(cur_path)
-	if coord_paths:
-		for cur_path in coord_paths:
-			slice_layer_path_group.addNode(cur_path)
 
 	# then the path group goes into a layer group
 	slice_layer_group = InkscapeGroup(f"g_slice_{slice.slice_index}", True)
