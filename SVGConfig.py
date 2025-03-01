@@ -9,7 +9,7 @@ class SVGConfig():
 
 		self.bottom_notch_config = None
 		self.grid_config = None
-		self.include_coordinates = False
+		self.extra_info = False
 
 		for cur_key in SVGConfig.getSchema()["properties"]:
 			if cur_key in svg_config:
@@ -50,7 +50,7 @@ class SVGConfig():
 				"svg_base_filename" : { "type" : "string"},
 				"smoothed" : { "type" : "boolean" },
 				"base_inches" : { "type" : "number"},
-				"include_coordinates" : { "type": "boolean" },
+				"extra_info" : { "type": "boolean" },
 				"grid_config" : {
 					"type" : "object",
 					"properties" : {

@@ -477,23 +477,21 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	text_spacing = text_width * 0.5	# space between digits
 
 	# current rendering coords (x increases as more info is rendered)
-	current_x = start_x + (config.base_inches * 2.0)
+	current_x = start_x + config.base_inches
 	current_y = start_y - 0.1
 
-	# --- arrow ---
-	arrow_y = current_y - (text_height / 2.0)
-	arrow_path, arrow_width = renderLeftArrow(current_x, arrow_y, text_height * 0.3, text_height * 0.3, text_width)
-	arrow_path.setColor(arrow_color_string)
+	# --- arrow/compass dir ---
+	if config.extra_info:
+		arrow_y = current_y - (text_height / 2.0)
+		arrow_path, arrow_width = renderLeftArrow(current_x, arrow_y, text_height * 0.3, text_height * 0.3, text_width)
+		arrow_path.setColor(arrow_color_string)
+		current_x += arrow_width + text_spacing
+		slice_layer_path_group.addNode(arrow_path)
 
-	current_x += arrow_width + text_spacing
-
-	slice_layer_path_group.addNode(arrow_path)
-
-	# --- direction ---
-	if slice.slice_direction == SliceDirection.NorthSouth:
-		info_string += "N "
-	elif slice.slice_direction == SliceDirection.WestEast:
-		info_string += "W "
+		if slice.slice_direction == SliceDirection.NorthSouth:
+			info_string += "N "
+		elif slice.slice_direction == SliceDirection.WestEast:
+			info_string += "W "
 
 	# --- slice index ---
 	slice_index_text = ""
@@ -506,7 +504,7 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	info_string += slice_index_text
 
 	# --- slice coordinate ---
-	if config.include_coordinates:
+	if config.extra_info:
 		coordinate = slice.coordinate()
 		coordinate = floatToPrecision(coordinate, 4)
 		info_string += f"{coordinate}{slice.compassDir()}"
