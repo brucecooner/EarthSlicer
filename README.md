@@ -1,8 +1,14 @@
 # EarthSlicer
-vertical topography slicer (Python)
+vertically oriented topography extractor (Python)
+
+---
+PLEASE NOTE: I haven't focused on this readme yet, so this is a not-entirely-useful mess.
+I plan on improving it when I have more time to devote to this project.
+---
 
 EarthSlicer produces a series of vertical "slices" of a specified square of the Earth's surface.
-These slices can be specified to run north-south or east-west.
+How many slices to take over this square, their orientation (north-south or east-west), and how many elevation samples to take
+across each slice can also be specified.
 
 These slices become a series of .svg files for laser cutting (or whatever fun).
 Since I use Inkscape, that flavored the file format I create, and thus I can only guarantee the files will work with Inkscape (download at inkscape.org).
