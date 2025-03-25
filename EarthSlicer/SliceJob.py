@@ -1,11 +1,7 @@
-from support.LogChannels import log
 from support.GTimer import gtimer
 
-from Slice import Slice
-from SliceJobConfig import SliceDirection, SliceJobConfig
-
-log.addChannel("slicejob", "slicejob")
-log.setChannel("slicejob", False)
+from EarthSlicer.Slice import Slice, SliceDirection
+from EarthSlicer.SliceJobConfig import SliceJobConfig
 
 # --------------------------------------------------------------------------------------------
 class SliceJob():

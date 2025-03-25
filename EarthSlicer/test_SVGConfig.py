@@ -1,6 +1,6 @@
 import pytest
 
-from SVGConfig import SVGConfig
+from EarthSlicer.SVGConfig import SVGConfig
 
 # --------------------------------------------------------------------------
 default_config_dict = {

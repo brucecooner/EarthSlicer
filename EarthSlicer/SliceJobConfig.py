@@ -3,14 +3,11 @@ from jsonschema import Draft7Validator
 
 from support.LogChannels import log
 from unitsSupport import *
-from Slice import SliceDirection
+from EarthSlicer.Slice import SliceDirection
 
 
 #	TODO:
 #	* additional validation (coordinates in correct order i.e. north > south)
-
-log.addChannel("sjc", "sjc")
-log.setChannel("sjc", False)
 
 # ------------------------------------------------------------------------------------------------------
 class SliceJobConfig():
@@ -101,8 +98,6 @@ class SliceJobConfig():
 	# -------------------------------------------------------------------------------------
 	@staticmethod
 	def validateConfig(slice_config: dict, throw_on_fail:bool = True) -> bool:
-		log.sjc(f"validateConfig(): {slice_config}")
-
 		validation_result = True
 
 		try:

@@ -1,7 +1,7 @@
 import pytest
 
-from Slice import SliceDirection
-from SliceJobConfig import SliceJobConfig
+from EarthSlicer.Slice import SliceDirection
+from EarthSlicer.SliceJobConfig import SliceJobConfig
 
 default_config_dict = {
 	"slice_direction" : "NorthSouth",

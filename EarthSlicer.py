@@ -17,10 +17,10 @@ from HeightMap import HeightMap
 from USGS_EPQS import USGS_EPQS
 
 # slicing
-from SliceJobConfig import SliceJobConfig
-from SliceJob import SliceJob
-from SVGConfig import SVGConfig
-from Slice import SliceDirection
+from EarthSlicer.SliceJobConfig import SliceJobConfig
+from EarthSlicer.SliceJob import SliceJob
+from EarthSlicer.SVGConfig import SVGConfig
+from EarthSlicer.Slice import SliceDirection
 from SliceRender import slicesToSVG
 
 #  -----------------------------------------------------------------

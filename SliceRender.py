@@ -5,8 +5,8 @@ from InkscapeSVG import *
 from support.LogChannels import log
 from unitsSupport import *
 
-from SVGConfig import SVGConfig
-from Slice import SliceDirection, Slice
+from EarthSlicer.SVGConfig import SVGConfig
+from EarthSlicer.Slice import SliceDirection, Slice
 
 # TODO:
 #	* weird little bug where last (rightmost segment) isn't smoothed?
