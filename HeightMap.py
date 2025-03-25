@@ -59,7 +59,7 @@ class HeightMap():
 		return string_rep
 
 	# -----------------------------------------------------------
-	def numToPrecision(self, num):
+	def numToPrecision(self, num: float)-> float:
 		as_int = int(num * self.decimal_shifter)		# shift left, make to int
 		to_precision = as_int / self.decimal_shifter	# shift right
 		return to_precision

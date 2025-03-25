@@ -1,6 +1,8 @@
 import os
 from math import ceil
 
+from support.numeric import *
+
 from InkscapeSVG import *
 from support.LogChannels import log
 from unitsSupport import *
@@ -27,6 +29,7 @@ log.setChannel("svggrid", False)
 #  -----------------------------------------------------------------
 # puts start x,y at lower left corner
 def renderSegPoints(start_x, start_y, width, height):
+	""" renders the six points used to draw segmented numbers/letters """
 	seg_points = []
 	seg_points.insert( 0, (start_x, start_y) )	# lower left
 	seg_points.insert( 1, (start_x + width, start_y) )	# lower right
@@ -54,37 +57,39 @@ def renderCross(x, y, width, height, path):
 
 #  -----------------------------------------------------------------
 # start_x,start_y specifies tip of arrow
-def renderLeftArrow(start_x, start_y, total_length, tip_fraction, tip_height_fraction):
-	tip_width = total_length * tip_fraction
-	tip_back_x = start_x + tip_width
-	tip_top_y = start_y - ((total_length * tip_height_fraction)/2)
-	tip_bottom_y = start_y + ((total_length * tip_height_fraction)/2)
+def renderLeftArrow(start_x, start_y, tip_width, tip_height, body_width)-> tuple:
+	""" renders left pointing arrow with tip at start_x,start_y  """
+	# tip_width = total_length * tip_fraction
+	# tip_back_x = start_x + (total_length * tip_fraction)
+	# tip_top_y = start_y - ((total_length * tip_height_fraction)/2)
+	# tip_bottom_y = start_y + ((total_length * tip_height_fraction)/2)
 
+	# draw tip
 	arrow_path = InkscapePath(start_x, start_y)
-	arrow_path.draw(tip_back_x, tip_top_y)
-	arrow_path.draw(tip_back_x, tip_top_y)
-	arrow_path.draw(tip_back_x, tip_bottom_y)
+	arrow_path.draw(start_x + tip_width, start_y - (tip_height / 2.0))
+	arrow_path.draw(start_x + tip_width, start_y + (tip_height / 2.0))
 	arrow_path.draw(start_x, start_y)
 
-	arrow_path.move(tip_back_x, start_y)
-	arrow_path.draw(start_x + total_length, start_y)
+	# draw body
+	arrow_path.move(start_x + tip_width, start_y)
+	arrow_path.draw(start_x + tip_width + body_width, start_y)
 
-	return arrow_path
+	return (arrow_path, tip_width + body_width)
 
 #  -----------------------------------------------------------------
 # start_x,start_y = coordinate of lower left corner
-def renderN(start_x, start_y, width, height, color = "000000"):
+def renderN(start_x, start_y, width, height, color = "000000")-> tuple:
 	sp = renderSegPoints(start_x,start_y,width,height)
 	char_path = InkscapePath(sp[0][0], sp[0][1])
 	char_path.setColor(color)
 	drawToIndex(char_path, sp, 4)
 	drawToIndex(char_path, sp, 1)
 	drawToIndex(char_path, sp, 5)
-	return char_path
+	return (char_path, width)
 
 #  -----------------------------------------------------------------
+def renderW(start_x: float, start_y: float, width: float, height: float, color:str = "000000")-> tuple:
 # start_x,start_y = coordinate of lower left corner
-def renderW(start_x, start_y, width, height, color = "000000"):
 	quarter_width = width * 0.25
 	char_path = InkscapePath(start_x, start_y - height)
 	char_path.setColor(color)
@@ -92,8 +97,31 @@ def renderW(start_x, start_y, width, height, color = "000000"):
 	char_path.draw(start_x + (quarter_width * 2), start_y - (height/2))
 	char_path.draw(start_x + (quarter_width * 3), start_y)
 	char_path.draw(start_x + (quarter_width * 4), start_y - height)
-	return char_path
+	return (char_path, width)
 
+#  -----------------------------------------------------------------
+def renderMinus(start_x: float, start_y: float, width: float, height: float)-> tuple:
+	minus_width = width / 2.0
+	path = InkscapePath(start_x, start_y - (height/2.0))
+	path.draw(start_x + minus_width, start_y - (height/2.0))
+	return (path, minus_width)
+
+#  -----------------------------------------------------------------
+def renderDecimalPoint(start_x, start_y, width, height)-> tuple:
+	dec_x = start_x
+	dec_size = width / 4.0
+	path = InkscapePath(dec_x, start_y)
+	path.draw(dec_x + dec_size, start_y)
+	path.draw(dec_x + dec_size, start_y - dec_size)
+	path.draw(dec_x, start_y - dec_size)
+	path.draw(dec_x, start_y)
+	return (path, dec_size)
+
+#  -----------------------------------------------------------------
+def renderSpace(start_x, start_y, width, height)-> tuple:
+	return (None, width)
+
+#  -----------------------------------------------------------------
 def render0(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[0][0], sp[0][1])
@@ -101,14 +129,15 @@ def render0(start_x, start_y, width, height):
 	drawToIndex(path, sp, 5)
 	drawToIndex(path, sp, 1)
 	path.close()
-	return path
+	return (path, width)
 
+#  -----------------------------------------------------------------
 def render1(start_x, start_y, width, height):
-	sp = renderSegPoints(start_x,start_y,width,height)
-	path = InkscapePath(sp[1][0], sp[1][1])
-	drawToIndex(path, sp, 5)
-	return path
+	path = InkscapePath(start_x, start_y)
+	path.draw(start_x, start_y - height)
+	return (path, 0.0)
 
+#  -----------------------------------------------------------------
 def render2(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[1][0], sp[1][1])
@@ -117,8 +146,9 @@ def render2(start_x, start_y, width, height):
 	drawToIndex(path, sp, 3)
 	drawToIndex(path, sp, 5)
 	drawToIndex(path, sp, 4)
-	return path
+	return (path, width)
 
+#  -----------------------------------------------------------------
 def render3(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[0][0], sp[0][1])
@@ -127,8 +157,9 @@ def render3(start_x, start_y, width, height):
 	drawToIndex(path, sp, 4)
 	moveToIndex(path, sp, 3)
 	drawToIndex(path, sp, 2)
-	return path
+	return (path, width)
 
+#  -----------------------------------------------------------------
 def render4(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[1][0], sp[1][1])
@@ -136,8 +167,9 @@ def render4(start_x, start_y, width, height):
 	moveToIndex(path, sp, 4)
 	drawToIndex(path, sp, 2)
 	drawToIndex(path, sp, 3)
-	return path
+	return (path, width)
 
+#  -----------------------------------------------------------------
 def render5(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[0][0], sp[0][1])
@@ -146,8 +178,9 @@ def render5(start_x, start_y, width, height):
 	drawToIndex(path, sp, 2)
 	drawToIndex(path, sp, 4)
 	drawToIndex(path, sp, 5)
-	return path
+	return (path, width)
 
+#  -----------------------------------------------------------------
 def render6(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[5][0], sp[5][1])
@@ -156,15 +189,17 @@ def render6(start_x, start_y, width, height):
 	drawToIndex(path, sp, 1)
 	drawToIndex(path, sp, 3)
 	drawToIndex(path, sp, 2)
-	return path
+	return (path, width)
 
+#  -----------------------------------------------------------------
 def render7(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[4][0], sp[4][1])
 	drawToIndex(path, sp, 5)
 	drawToIndex(path, sp, 1)
-	return path
+	return (path, width)
 
+#  -----------------------------------------------------------------
 def render8(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[0][0], sp[0][1])
@@ -174,8 +209,9 @@ def render8(start_x, start_y, width, height):
 	drawToIndex(path, sp, 0)
 	moveToIndex(path, sp, 2)
 	drawToIndex(path, sp, 3)
-	return path
+	return (path, width)
 
+#  -----------------------------------------------------------------
 def render9(start_x, start_y, width, height):
 	sp = renderSegPoints(start_x,start_y,width,height)
 	path = InkscapePath(sp[0][0], sp[0][1])
@@ -184,30 +220,53 @@ def render9(start_x, start_y, width, height):
 	drawToIndex(path, sp, 4)
 	drawToIndex(path, sp, 2)
 	drawToIndex(path, sp, 3)
-	return path
+	return (path, width)
+
 
 # ------------------------------------------------------------------
-def renderNumString(int_str, start_x, start_y, width, height, spacing, color="000000"):
-	paths = []
+def renderNumString(	int_str: str,
+							start_x: float,
+							start_y: float,
+							width: float,
+							height: float,
+							spacing: float,
+							color="000000")-> tuple:
 
-	num_render_funcs = [
-		render0, render1, render2, render3, render4, render5, render6, render7, render8, render9
-	]
+	paths = []
+	total_width = 0.0
+
+	render_funcs = {
+		'0' : render0,
+		'1' : render1,
+		'2' : render2,
+		'3' : render3,
+		'4' : render4,
+		'5' : render5,
+		'6' : render6,
+		'7' : render7,
+		'8' : render8,
+		'9' : render9,
+		'W' : renderW,
+		# 'E' : renderE,
+		'N' : renderN,
+		# 'S' : renderS,
+		'-' : renderMinus,
+		'.' : renderDecimalPoint,
+		' ' : renderSpace
+	}
 
 	cur_x = start_x
 
 	for cur_char in int_str:
-		cur_render_func = num_render_funcs[ord(cur_char) - ord("0")]
-		path = cur_render_func(cur_x, start_y, width, height)
-		path.setColor(color)
-		paths.append(path)
-		cur_x += width + spacing
+		cur_render_func = render_funcs[cur_char]
+		path, used_width = cur_render_func(cur_x, start_y, width, height)
+		if path:
+			path.setColor(color)
+			paths.append(path)
+		cur_x += used_width + spacing
+		total_width += used_width + spacing
 
-	return paths
-
-# ------------------------------------------------------------------
-def renderInt(int_number, start_x, start_y, width, height, spacing):
-	return renderNumString(f"{int_number}")
+	return (paths, total_width)
 
 #  -----------------------------------------------------------------
 # todo: so many params, can we make this cleaner?
@@ -379,7 +438,7 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 	# -----------
 	# draw bottom
 
-	# draws not going to "left" (decreasing x)
+	# draws notch going to "left" (decreasing x)
 	def notchAt(nx, ny, ndepth, nwidth, path):
 		# up
 		path.draw(nx, ny - ndepth)
@@ -404,59 +463,54 @@ def sliceToLayer(slice, config:SVGConfig, minimum_elevation, start_x, start_y):
 		c2_path.close()
 		points_path.close()
 
-	# add arrows / direction indicator
-	# eh, arrow/direction not really adding much
-	arrow_path = None
-	dir_path = None
-	# add arrow pointing left
-	# arrow_height = (config.base_inches) * 0.25
-	# arrow_length = arrow_height * 4
-	# arrow_x = start_x + 0.5 # this assumes we've got 0.5 inches to work with
-	# arrow_y = start_y - config.base_inches * 0.5
-	# arrow_path = renderLeftArrow(arrow_x, arrow_y, arrow_length, 0.25, 0.25)
-	# arrow_path.setColor(arrow_color_string)
+	# all paths go in same (non layer) group
+	slice_layer_path_group = InkscapeGroup(f"p_slice_{slice.slice_index}")
+	slice_layer_path_group.addNode(slice_path)
 
-	# text_height = config.base_inches * 0.5
-	# text_width = text_height * 0.5
-	# text_spacing = text_width * 0.5
-	# text_start_x = arrow_x + arrow_length + text_spacing
-	# text_start_y = start_y - (config.base_inches * 0.25)
+	# ----- render info on slice -----
+	info_string = ""
 
-	# renderLetterFunc = renderN
-	# if slice.slice_direction == SliceDirection.WestEast:
-	# 	renderLetterFunc = renderW
-
-	# dir_path = renderLetterFunc(text_start_x, text_start_y, text_width, text_height, text_color_string)
-
-	# text_start_x += (text_width + text_spacing) * 2
-
-	# add slice number
-	text_start_x = start_x + 0.5
+	# note: text height is scaled by base_inches
 	text_height = min(config.base_inches * 0.5, 0.1)
 	text_width = text_height * 0.5
 	# TODO: figure out better text placement/config
-	# text_start_y = start_y - notch_depth - 0.1 if notch_depth else start_y - 0.1 # (config.base_inches * 0.25)
-	text_start_y = start_y - 0.1 # (config.base_inches * 0.25)
-	text_spacing = text_width * 0.5
+	text_spacing = text_width * 0.5	# space between digits
 
-	# note: text is green
+	# current rendering coords (x increases as more info is rendered)
+	current_x = start_x + config.base_inches
+	current_y = start_y - 0.1
+
+	# --- arrow/compass dir ---
+	if config.extra_info:
+		arrow_y = current_y - (text_height / 2.0)
+		arrow_path, arrow_width = renderLeftArrow(current_x, arrow_y, text_height * 0.3, text_height * 0.3, text_width)
+		arrow_path.setColor(arrow_color_string)
+		current_x += arrow_width + text_spacing
+		slice_layer_path_group.addNode(arrow_path)
+
+		if slice.slice_direction == SliceDirection.NorthSouth:
+			info_string += "N "
+		elif slice.slice_direction == SliceDirection.WestEast:
+			info_string += "W "
+
+	# --- slice index ---
 	slice_index_text = ""
 	# leading zeroes?
 	if slice.slice_index < 10:
 		slice_index_text += "00"
 	elif slice.slice_index < 100:
 		slice_index_text += "0"
-	slice_index_text += f"{slice.slice_index}"
-	num_paths = renderNumString(slice_index_text, text_start_x, text_start_y, text_width, text_height, text_spacing, text_color_string)
+	slice_index_text += f"{slice.slice_index}  "
+	info_string += slice_index_text
 
-	# all paths in same (non layer) group
-	slice_layer_path_group = InkscapeGroup(f"p_slice_{slice.slice_index}")
-	slice_layer_path_group.addNode(slice_path)
-	if arrow_path:
-		slice_layer_path_group.addNode(arrow_path)
-	if dir_path:
-		slice_layer_path_group.addNode(dir_path)
-	for cur_path in num_paths:
+	# --- slice coordinate ---
+	if config.extra_info:
+		coordinate = slice.coordinate()
+		coordinate = floatToPrecision(coordinate, 4)
+		info_string += f"{coordinate}{slice.compassDir()}"
+
+	info_string_paths, info_string_width = renderNumString(info_string, current_x, current_y, text_width, text_height, text_spacing, text_color_string)
+	for cur_path in info_string_paths:
 		slice_layer_path_group.addNode(cur_path)
 
 	# then the path group goes into a layer group
@@ -494,23 +548,21 @@ def slicesToGridRow(slices, min_global_elevation, config:SVGConfig):
 
 # -----------------------------------------------------------------------------------------
 def slicesToSVG(slices:list[Slice], config:SVGConfig):
-
-	# extend the svg config a bit...TODO: this somewhere else
-	# moved to main
-	# config.addProperties({"layers_grid_x_spacing":0.5, "layers_grid_y_spacing":0.25})
-
 	# have to know the minimum world elevation in the job as every slice has to be adjusted in screen space for it
 	min_global_elevation = min([cur_slice.minimum_elevation for cur_slice in slices])
-	grid_width = config.layers_grid_max_x - config.layers_grid_min_x
-	# num_slices_per_row = min(1, grid_width / (config.slice_width_inches + grid_row_horizontal_spacing))
-	num_slices_per_row = ceil(grid_width / (config.slice_width_inches + config.layers_grid_x_spacing))
+
+	# set up to do "overlay" mode, where all slices appear at 0,0
+	# grid_width = None
+	num_slices_per_row = 1
 	row_results = []
 
-	
+	# calculate grid dims only if grid_config specified
+	if config.grid_config:
+		grid_width = config.grid_config["layers_grid_max_x"] - config.grid_config["layers_grid_min_x"]
+		num_slices_per_row = ceil(grid_width / (config.slice_width_inches + config.layers_grid_x_spacing))
 
 	log.slicesToSVG(f"slicesToSVG() num slices: {len(slices)}")
 	log.slicesToSVG(f"min_global_elevation:{min_global_elevation}")
-	log.slicesToSVG(f"grid_width:{grid_width}")
 	log.slicesToSVG(f"num_slices_per_row:{num_slices_per_row}")
 
 	cur_slice_index = 0
@@ -546,16 +598,19 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 	cur_file_start_slice_index = 0
 	cur_file_end_slice_index = 0
 
+	total_y_transform = 0.0
+
 	# move rows into grids until they're all gone
 	while cur_row_index < len(row_results):
 		log.slicesToSVG(f"cur_row_index:{cur_row_index}")
 		cur_row_result = row_results[cur_row_index]
 
-		# add this row's y transform
+		# if rendering grid, add this row's y transform
 		# rows were all rendered at y=0, so we want to transform this row down onscreen, increasing y, by its maximum Y coordinate (stored in result[1])
 		# BUT...the slice was rendered upward in screen space, which means it went towards negative
 		# coordinates, but we want to move it DOWN in screen space, or in a positive y direction, so reverse the min y
-		total_y_transform += (-cur_row_result[0] + (0 if cur_row_index == 0 else config.layers_grid_y_spacing))
+		if config.grid_config:
+			total_y_transform += (-cur_row_result[0] + (0 if cur_row_index == 0 else config.layers_grid_y_spacing))
 
 		for cur_row_slice in cur_row_result[1]:
 			log.slicesToSVG(f"adding row slice to svg...")
@@ -565,12 +620,21 @@ def slicesToSVG(slices:list[Slice], config:SVGConfig):
 			cur_svg.addNode(cur_row_slice)
 
 		# update numbers for added row
-		slices_in_current_svg += num_slices_per_row
-		# cur_file_end_slice_index += num_slices_per_row	# subtract one because zero based
+		slices_in_current_svg += len(cur_row_result[1])
+
 		log.slicesToSVG(f"slices_in_current_svg: {slices_in_current_svg}")
 
+		# time to write file?
+		write_current_svg = False
+
+		if config.grid_config:
+			write_current_svg = (total_y_transform >= config.grid_config["layers_grid_max_y"]) or cur_row_index >= (len(row_results) - 1)
+		else:
+			# in non-grid mode, run to end then write
+			write_current_svg = cur_row_index >= (len(row_results) - 1)
+
 		# are we beyond max_y now? or at last row?
-		if (total_y_transform >= config.layers_grid_max_y) or cur_row_index >= (len(row_results)-1):
+		if write_current_svg: # (total_y_transform >= config.layers_grid_max_y) or cur_row_index >= (len(row_results)-1):
 			# write current svg
 			cur_file_end_slice_index = cur_file_start_slice_index + slices_in_current_svg - 1
 

@@ -7,13 +7,8 @@ I plan on improving it when I have more time to devote to this project.
 ---
 
 EarthSlicer produces a series of vertical "slices" of a specified square of the Earth's surface.
-How many slices to take over this square, their orientation (north-south or east-west), and how many elevation samples to take across each slice can also be specified.
-
-If you're making a physical model, the number of slices would obviously be determined by the width of your material compared to the scale of the modeled area,
-and the script has an option that takes a width of material as input and reports how many slices would be required to match the horizontal scale using the
-specified material.
-
-Run the script with the --h option to see what options are available.
+How many slices to take over this square, their orientation (north-south or east-west), and how many elevation samples to take
+across each slice can also be specified.
 
 These slices become a series of .svg files for laser cutting (or whatever fun).
 Since I use Inkscape, that flavored the file format I create, and thus I can only guarantee the files will work with Inkscape (download at inkscape.org).

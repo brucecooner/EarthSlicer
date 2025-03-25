@@ -218,6 +218,32 @@ class Slice:
 		return self.sliceLengthMiles() * feetPerMile()
 
 	# ------------------------------------------
+	def coordinate(self) -> float:
+		""" coordinate for this slice note: no context regarding direction, see compassDir() """
+		return_coord = 0.0
+
+		if self.slice_direction == SliceDirection.NorthSouth:
+			return_coord = self.start_long
+		elif self.slice_direction == SliceDirection.WestEast:
+			return_coord = self.start_lat
+
+		return return_coord
+
+	# ------------------------------------------
+	def compassDir(self, single_letter: bool = True)-> str:
+		""" returns compass direction of this slice's coordinate """
+		compass_dir = ""
+		
+		coord = self.coordinate()
+
+		if self.slice_direction == SliceDirection.NorthSouth:
+			compass_dir = "East" if coord > 0.0 else "West"
+		elif self.slice_direction == SliceDirection.WestEast:
+			compass_dir = "North" if coord > 0.0 else "South"
+
+		return compass_dir[0] if single_letter else compass_dir
+
+	# ------------------------------------------
 	def __getitem__(self, item):
 			return getattr(self, item)
 

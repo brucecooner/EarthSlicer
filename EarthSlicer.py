@@ -28,12 +28,16 @@ from SliceRender import slicesToSVG
 # TODO:
 #  -----------------------------------------------------------------
 #  -----------------------------------------------------------------
-#	* command line param to spit display/produce a job file?
-#	* overlay mode (all slices at same svg x,y)
+#	* config-controlled coordinate output on slices (w/precision)
+
+#	* separate grid/non-grid rendering paths
+#	* restore directional arrows to slices?
+#	* add S,E rendering to sliceRender, and test with South/East jobs
+#	* SVGConfig contains more options (stroke width/color, fill color)
+#	* command line param to print an example job file?  Or maybe the schema?
 #	* text placement configuration options (optional arrow/direction?)
 #	* output config onto svg
 #	* allow command line parameter overriding any config option?
-#	* add coords to output slices?
 #	* allow material thickness inches option to calculate/override configured number of slices?
 #	* emsmallen the text (parameterized?)
 #	* validator: better way to denote keys that belong to dict, and keys that belong to validator
@@ -53,6 +57,8 @@ from SliceRender import slicesToSVG
 #	* progress feedback when getting lots of elevations
 
 # DONE:
+#	* add coords to output slices?
+#	* overlay mode (all slices at same svg x,y)
 #	* SVGConfig use json schema
 #	* SliceJobConfig -> use json schema
 #	* render every nth slice (slice step)
