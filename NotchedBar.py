@@ -10,6 +10,10 @@ from support.LogChannels import log
 
 log.addChannel("echo")
 
+
+# TODO: switch this to use a json schema
+# WILL BE HORRIBLY BROKEN UNTIL THEN!!!
+
 # Notes:
 # - all measurements assumed to be in INCHES
 
