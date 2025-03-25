@@ -14,13 +14,11 @@ These slices become a series of .svg files for laser cutting (or whatever fun).
 Since I use Inkscape, that flavored the file format I create, and thus I can only guarantee the files will work with Inkscape (download at inkscape.org).
 
 Height data comes from USGS elevation query point service.
-The queried heights are saved in a local text file (non-optimal but ok for now).
-This local elevation store will speed up future runs of a job that uses the same elevation coordinates.
+The queried heights are saved in a local text file  that will speed up future runs of jobs using the same elevation coordinates.
 
-The script is driven by a json configuration file with two sections, one that specifies the parameters of a "slice job" and a section e that configures the svg output.
+The script is driven by a json configuration file with two sections, one that specifies the parameters of a "slice job" and a section that configures the svg output.
 
 An example slice job config is included in the project, see the example-slicejob\ folder.
-
 
 After cloning, enter root and run: 
 
