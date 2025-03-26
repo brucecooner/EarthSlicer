@@ -11,7 +11,7 @@ import math
 from support.LogChannels import log
 from support.GTimer import gtimer
 from support.ClassFromDict import ClassFromDict
-from unitsSupport import *
+from support.unitsSupport import *
 
 from HeightMap import HeightMap
 from USGS_EPQS import USGS_EPQS

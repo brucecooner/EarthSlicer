@@ -5,7 +5,7 @@ from support.numeric import *
 
 from InkscapeSVG import *
 from support.LogChannels import log
-from unitsSupport import *
+from support.unitsSupport import *
 
 from EarthSlicer.SVGConfig import SVGConfig
 from EarthSlicer.Slice import SliceDirection, Slice

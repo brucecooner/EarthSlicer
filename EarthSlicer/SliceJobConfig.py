@@ -2,7 +2,7 @@
 from jsonschema import Draft7Validator
 
 from support.LogChannels import log
-from unitsSupport import *
+from support.unitsSupport import *
 from EarthSlicer.Slice import SliceDirection
 
 

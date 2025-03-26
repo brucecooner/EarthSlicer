@@ -20,6 +20,7 @@
 		"layers_grid_min_y" : 0.0,
 		"layers_grid_max_y" : 20.0,
 		"base_inches" : 0.5,
+		"extra_info" : true,
 		"grid_config" : {
 			"layers_grid_min_x" : 0.0,
 			"layers_grid_max_x" : 30.0,
